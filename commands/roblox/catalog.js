@@ -1,45 +1,50 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { card, err, COLORS } from '../../utils/components.js';
-import { searchCatalog } from '../../utils/roblox.js';
+'use strict';
 
-export const data = new SlashCommandBuilder()
+const { SlashCommandBuilder } = require('discord.js');
+const { card, err, COLORS }   = require('../../utils/components');
+const { searchCatalog }       = require('../../utils/roblox');
+
+const data = new SlashCommandBuilder()
   .setName('catalog')
-  .setDescription('search the roblox catalog')
+  .setDescription('search the Roblox catalog for items')
   .addStringOption(o => o.setName('query').setDescription('search query').setRequired(true))
   .addStringOption(o => o.setName('category').setDescription('item category').addChoices(
-    { name: 'All', value: '0' },
+    { name: 'All',         value: '0' },
     { name: 'Accessories', value: '9' },
-    { name: 'Clothing', value: '3' },
-    { name: 'Gear', value: '5' },
+    { name: 'Clothing',    value: '3' },
+    { name: 'Gear',        value: '5' },
   ));
 
-export const aliases = ['shop', 'items'];
-export const usage = '!catalog <query>';
+const category   = 'roblox';
+const prefixName = 'catalog';
+const aliases    = ['shop', 'items'];
 
-export async function execute(interaction) {
+async function execute(interaction) {
   await interaction.deferReply();
-  const query = interaction.options.getString('query');
-  const category = interaction.options.getString('category') || '0';
-  const results = await searchCatalog(query, category).catch(() => null);
-  if (!results?.length) return interaction.editReply(err(`no results for **${query}**`));
+  const query    = interaction.options.getString('query');
+  const cat      = interaction.options.getString('category') || '0';
+  const results  = await searchCatalog(query, cat).catch(() => null);
+  if (!results?.length) return interaction.editReply(err(`No results for **${query}**.`));
   await interaction.editReply(card({
-    title: `catalog: ${query}`,
-    desc: results.slice(0, 10).map(i =>
-      `**[${i.name}](https://www.roblox.com/catalog/${i.id})** — ${i.price ? `${i.price} R$` : 'free'}`
+    title:  `Catalog: ${query}`,
+    desc:   results.slice(0, 10).map(i =>
+      `**[${i.name}](https://www.roblox.com/catalog/${i.id})** — ${i.price != null ? `${i.price} R$` : 'free'}`
     ).join('\n'),
-    color: COLORS.roblox,
+    color:  COLORS.teal,
     footer: `${results.length} results`,
   }));
 }
 
-export async function prefixExecute(message, args) {
-  if (!args.length) return message.reply(err('provide a search query'));
-  const query = args.join(' ');
+async function prefixExecute(message, args) {
+  if (!args.length) return message.reply(err('Provide a search query.'));
+  const query   = args.join(' ');
   const results = await searchCatalog(query, '0').catch(() => null);
-  if (!results?.length) return message.reply(err(`no results for **${query}**`));
+  if (!results?.length) return message.reply(err(`No results for **${query}**.`));
   await message.reply(card({
-    title: `catalog: ${query}`,
-    desc: results.slice(0, 5).map(i => `**${i.name}** — ${i.price ? `${i.price} R$` : 'free'}`).join('\n'),
-    color: COLORS.roblox,
+    title: `Catalog: ${query}`,
+    desc:  results.slice(0, 5).map(i => `**${i.name}** — ${i.price != null ? `${i.price} R$` : 'free'}`).join('\n'),
+    color: COLORS.teal,
   }));
 }
+
+module.exports = { data, execute, prefixExecute, prefixName, aliases, category };

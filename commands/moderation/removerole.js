@@ -26,4 +26,26 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('removerole')
+  .setDescription('remove a role from a specific member')
+  .addUserOption(o => o.setName('user').setDescription('member to remove the role from').setRequired(true))
+  .addRoleOption(o => o.setName('role').setDescription('role to remove').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles);
+
+async function execute(interaction) {
+  const user   = interaction.options.getUser('user');
+  const role   = interaction.options.getRole('role');
+  const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (!member) return interaction.reply(err('Member not found.'));
+  try {
+    await member.roles.remove(role);
+    await interaction.reply(ok(`Removed ${role} from ${user}.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

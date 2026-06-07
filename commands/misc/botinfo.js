@@ -35,4 +35,14 @@ async function prefixExecute(message) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('botinfo')
+  .setDescription('show information about the bot');
+
+async function execute(interaction) {
+  return prefixExecute(interaction, []);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

@@ -115,4 +115,35 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('giveaway')
+  .setDescription('manage giveaways')
+  .addSubcommand(s => s
+    .setName('start')
+    .setDescription('start a giveaway')
+    .addStringOption(o => o.setName('prize').setDescription('what is being given away').setRequired(true))
+    .addIntegerOption(o => o.setName('duration').setDescription('duration in minutes').setRequired(true).setMinValue(1))
+    .addIntegerOption(o => o.setName('winners').setDescription('number of winners').setMinValue(1)))
+  .addSubcommand(s => s
+    .setName('end')
+    .setDescription('end a giveaway early by message ID')
+    .addStringOption(o => o.setName('messageid').setDescription('giveaway message ID').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('reroll')
+    .setDescription('reroll a giveaway winner')
+    .addStringOption(o => o.setName('messageid').setDescription('giveaway message ID').setRequired(true)))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const sub       = interaction.options.getSubcommand();
+  const prize     = interaction.options.getString('prize');
+  const duration  = interaction.options.getInteger('duration');
+  const winners   = interaction.options.getInteger('winners') || 1;
+  const messageId = interaction.options.getString('messageid');
+  const args      = [sub, prize, duration && `${duration}m`, winners, messageId].filter(Boolean);
+  return prefixExecute(interaction, args);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

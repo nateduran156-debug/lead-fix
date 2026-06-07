@@ -22,4 +22,20 @@ async function prefixExecute(message, args) {
   member.user.send({ content: `⚠️ You have been warned in **${message.guild.name}**: ${reason}` }).catch(() => {});
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('warn')
+  .setDescription('issue a logged warning to a member')
+  .addUserOption(o => o.setName('user').setDescription('member to warn').setRequired(true))
+  .addStringOption(o => o.setName('reason').setDescription('reason for the warning').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+
+async function execute(interaction) {
+  const user   = interaction.options.getUser('user');
+  const reason = interaction.options.getString('reason');
+  addWarning(interaction.guild.id, user.id, interaction.user.id, reason);
+  await interaction.reply(modCard({ action: 'Warn', user, mod: interaction.user, reason }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

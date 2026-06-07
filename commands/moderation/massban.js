@@ -26,4 +26,24 @@ async function prefixExecute(message, args) {
   message.reply(ok(`Banned **${banned}/${ids.length}** users — **${reason}**`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('massban')
+  .setDescription('ban multiple users by ID at once')
+  .addStringOption(o => o.setName('userids').setDescription('space-separated user IDs').setRequired(true))
+  .addStringOption(o => o.setName('reason').setDescription('reason for the mass ban'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers);
+
+async function execute(interaction) {
+  const ids    = interaction.options.getString('userids').split(/\s+/).filter(Boolean);
+  const reason = interaction.options.getString('reason') || 'Mass ban';
+  await interaction.deferReply();
+  let banned = 0, failed = 0;
+  for (const id of ids) {
+    await interaction.guild.members.ban(id, { reason }).then(() => banned++).catch(() => failed++);
+  }
+  await interaction.editReply(ok(`Banned **${banned}** user(s)${failed ? `, ${failed} failed` : ''}. Reason: ${reason}`));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

@@ -110,4 +110,48 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('welcome')
+  .setDescription('configure the welcome message system')
+  .addSubcommand(s => s
+    .setName('setup')
+    .setDescription('set the welcome channel and message')
+    .addChannelOption(o => o.setName('channel').setDescription('welcome channel').setRequired(true))
+    .addStringOption(o => o.setName('message').setDescription('welcome message — use {user} and {server}').setRequired(true)))
+  .addSubcommand(s => s.setName('enable').setDescription('enable the welcome system'))
+  .addSubcommand(s => s.setName('disable').setDescription('disable the welcome system'))
+  .addSubcommand(s => s.setName('test').setDescription('send a test welcome message'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const sub     = interaction.options.getSubcommand();
+  const guildId = interaction.guild.id;
+  ensureGuild(guildId);
+  if (sub === 'setup') {
+    const ch  = interaction.options.getChannel('channel');
+    const msg = interaction.options.getString('message');
+    db.prepare('UPDATE guilds SET welcome_channel = ?, welcome_message = ?, welcome_enabled = 1 WHERE id = ?').run(ch.id, msg, guildId);
+    return interaction.reply(ok(`Welcome system configured — messages will go to ${ch}.`));
+  }
+  if (sub === 'enable') {
+    db.prepare('UPDATE guilds SET welcome_enabled = 1 WHERE id = ?').run(guildId);
+    return interaction.reply(ok('Welcome system enabled.'));
+  }
+  if (sub === 'disable') {
+    db.prepare('UPDATE guilds SET welcome_enabled = 0 WHERE id = ?').run(guildId);
+    return interaction.reply(ok('Welcome system disabled.'));
+  }
+  if (sub === 'test') {
+    const g = getGuild(guildId);
+    const ch = g.welcome_channel ? interaction.guild.channels.cache.get(g.welcome_channel) : interaction.channel;
+    const msg = (g.welcome_message || 'Welcome {user} to {server}!')
+      .replace('{user}', interaction.user.toString())
+      .replace('{server}', interaction.guild.name);
+    await ch.send(msg);
+    return interaction.reply(ok('Test welcome message sent.'));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

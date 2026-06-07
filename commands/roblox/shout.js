@@ -1,35 +1,43 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { ok, err } from '../../utils/components.js';
-import { getGuild } from '../../utils/database.js';
-import { setGroupShout } from '../../utils/roblox.js';
+'use strict';
 
-export const data = new SlashCommandBuilder()
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { ok, err }                    = require('../../utils/components');
+const { getGuild, getVerifyConfig }  = require('../../utils/database');
+const { setGroupShout }              = require('../../utils/roblox');
+
+const data = new SlashCommandBuilder()
   .setName('shout')
-  .setDescription('post a shout on the group wall')
+  .setDescription('update your Roblox group shout')
   .addStringOption(o => o.setName('message').setDescription('shout message').setRequired(true))
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
-export const aliases = ['groupshout', 'gs'];
-export const usage = '!shout <message>';
+const category   = 'roblox';
+const prefixName = 'shout';
+const aliases    = ['groupshout', 'gs'];
 
-export async function execute(interaction) {
+async function execute(interaction) {
   const guildData = getGuild(interaction.guild.id);
-  if (!guildData.roblox_group_id) return interaction.reply(err('no group configured — use `/setgroup` first'));
-  const msg = interaction.options.getString('message');
+  if (!guildData.roblox_group_id)
+    return interaction.reply(err('No group configured — use `/setgroup` first.'));
+  const msg    = interaction.options.getString('message');
+  const cookie = getVerifyConfig(interaction.guild.id)?.cookie;
   await interaction.deferReply();
-  const result = await setGroupShout(guildData.roblox_group_id, msg).catch(e => ({ error: e.message }));
-  if (result?.error) return interaction.editReply(err(`shout failed: ${result.error}`));
-  await interaction.editReply(ok(`group shout updated: *${msg}*`));
+  const result = await setGroupShout(guildData.roblox_group_id, msg, cookie).catch(e => ({ error: e.message }));
+  if (result?.error) return interaction.editReply(err(`Shout failed: ${result.error}`));
+  await interaction.editReply(ok(`Group shout updated: *${msg}*`));
 }
 
-export async function prefixExecute(message, args) {
+async function prefixExecute(message, args) {
   if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild))
-    return message.reply(err('you need Manage Server permission'));
+    return message.reply(err('You need the **Manage Server** permission.'));
   const guildData = getGuild(message.guild.id);
-  if (!guildData.roblox_group_id) return message.reply(err('no group configured'));
+  if (!guildData.roblox_group_id) return message.reply(err('No group configured.'));
   const msg = args.join(' ');
-  if (!msg) return message.reply(err('provide a shout message'));
-  const result = await setGroupShout(guildData.roblox_group_id, msg).catch(e => ({ error: e.message }));
-  if (result?.error) return message.reply(err(`shout failed: ${result.error}`));
-  await message.reply(ok(`shout updated: *${msg}*`));
+  if (!msg) return message.reply(err('Provide a shout message.'));
+  const cookie = getVerifyConfig(message.guild.id)?.cookie;
+  const result = await setGroupShout(guildData.roblox_group_id, msg, cookie).catch(e => ({ error: e.message }));
+  if (result?.error) return message.reply(err(`Shout failed: ${result.error}`));
+  await message.reply(ok(`Shout updated: *${msg}*`));
 }
+
+module.exports = { data, execute, prefixExecute, prefixName, aliases, category };

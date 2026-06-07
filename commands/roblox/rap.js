@@ -31,4 +31,24 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('rap')
+  .setDescription('get total RAP (Recent Average Price) for a Roblox user\'s limiteds')
+  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID').setRequired(true));
+
+async function execute(interaction) {
+  const input = interaction.options.getString('user');
+  await interaction.deferReply();
+  const u   = isNaN(input) ? await getUserByUsername(input).catch(() => null) : { id: input, name: input };
+  if (!u) return interaction.editReply(err(`**${input}** not found.`));
+  const rap = await getUserRap(u.id).catch(() => null);
+  await interaction.editReply(card({
+    title: `RAP — ${u.name ?? input}`,
+    desc:  rap != null ? `Total RAP: **${rap.toLocaleString()} R$**` : 'Could not calculate RAP.',
+    color: COLORS.teal,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

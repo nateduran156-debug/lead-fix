@@ -25,4 +25,30 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder, ChannelType: CT } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('createchannel')
+  .setDescription('create a new text or voice channel')
+  .addStringOption(o => o.setName('name').setDescription('channel name').setRequired(true))
+  .addStringOption(o => o.setName('type').setDescription('channel type').addChoices(
+    { name: 'Text', value: 'text' },
+    { name: 'Voice', value: 'voice' },
+  ))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
+
+async function execute(interaction) {
+  const name = interaction.options.getString('name');
+  const type = interaction.options.getString('type') || 'text';
+  try {
+    const ch = await interaction.guild.channels.create({
+      name,
+      type: type === 'voice' ? CT.GuildVoice : CT.GuildText,
+    });
+    await interaction.reply(ok(`Created channel ${ch}.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

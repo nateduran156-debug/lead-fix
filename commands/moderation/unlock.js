@@ -22,4 +22,22 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('unlock')
+  .setDescription('restore send permissions in a channel')
+  .addChannelOption(o => o.setName('channel').setDescription('channel to unlock (default: current)'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
+
+async function execute(interaction) {
+  const ch = interaction.options.getChannel('channel') || interaction.channel;
+  try {
+    await ch.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: null });
+    await interaction.reply(ok(`🔓 Unlocked ${ch}.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

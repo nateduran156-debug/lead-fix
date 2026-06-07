@@ -19,4 +19,18 @@ async function prefixExecute(message, args) {
   return message.reply(ok(`All warnings have been cleared for ${member}.`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('clearwarns')
+  .setDescription('clear all warnings from a user\'s record')
+  .addUserOption(o => o.setName('user').setDescription('user to clear warnings for').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+
+async function execute(interaction) {
+  const user = interaction.options.getUser('user');
+  clearWarnings(interaction.guild.id, user.id);
+  await interaction.reply(ok(`Cleared all warnings for ${user}.`));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

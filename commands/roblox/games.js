@@ -31,4 +31,27 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('games')
+  .setDescription('list games created by a Roblox user')
+  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID').setRequired(true));
+
+async function execute(interaction) {
+  const input = interaction.options.getString('user');
+  await interaction.deferReply();
+  const u     = isNaN(input) ? await getUserByUsername(input).catch(() => null) : { id: input, name: input };
+  if (!u) return interaction.editReply(err(`**${input}** not found.`));
+  const games = await getUserGames(u.id).catch(() => null);
+  if (!games?.length) return interaction.editReply(err(`No games found for **${u.name ?? input}**.`));
+  await interaction.editReply(card({
+    title: `Games — ${u.name ?? input}`,
+    desc:  games.slice(0, 8).map(g =>
+      `**[${g.name}](https://www.roblox.com/games/${g.rootPlaceId})** — ${g.visits?.toLocaleString() ?? '?'} visits`
+    ).join('\n'),
+    color: COLORS.teal,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

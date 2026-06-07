@@ -27,4 +27,20 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('history')
+  .setDescription('view full moderation history for a user')
+  .addUserOption(o => o.setName('user').setDescription('user to check').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+
+async function execute(interaction) {
+  const user  = interaction.options.getUser('user');
+  const warns = getWarnings(interaction.guild.id, user.id);
+  if (!warns.length) return interaction.reply(ok(`**${user.username}** has a clean record.`));
+  const list  = warns.map((w, i) => `**${i + 1}.** ${w.reason} — <t:${Math.floor(w.timestamp / 1000)}:R> by <@${w.mod_id}>`).join('\n');
+  await interaction.reply(card({ title: `Mod History — ${user.username}`, desc: list.slice(0, 4000), color: COLORS.red }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

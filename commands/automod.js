@@ -125,4 +125,34 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('automod')
+  .setDescription('configure the auto-moderation system')
+  .addSubcommand(s => s.setName('enable').setDescription('enable auto-moderation'))
+  .addSubcommand(s => s.setName('disable').setDescription('disable auto-moderation'))
+  .addSubcommand(s => s
+    .setName('addword')
+    .setDescription('add a word to the banned words list')
+    .addStringOption(o => o.setName('word').setDescription('word to ban').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('removeword')
+    .setDescription('remove a word from the banned words list')
+    .addStringOption(o => o.setName('word').setDescription('word to remove').setRequired(true)))
+  .addSubcommand(s => s.setName('status').setDescription('show current auto-mod settings'))
+  .addSubcommand(s => s
+    .setName('antispam')
+    .setDescription('configure anti-spam threshold')
+    .addIntegerOption(o => o.setName('messages').setDescription('messages per 5 seconds before action').setRequired(true).setMinValue(1)))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const sub  = interaction.options.getSubcommand();
+  const word = interaction.options.getString('word');
+  const msgs = interaction.options.getInteger('messages');
+  const args = [sub, word ?? msgs ?? ''].filter(x => x !== '' && x != null);
+  return prefixExecute(interaction, args);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

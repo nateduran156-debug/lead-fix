@@ -31,4 +31,24 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('outfit')
+  .setDescription('preview a Roblox user\'s current outfit / avatar look')
+  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID').setRequired(true));
+
+async function execute(interaction) {
+  const input = interaction.options.getString('user');
+  await interaction.deferReply();
+  const u = isNaN(input) ? await getUserByUsername(input).catch(() => null) : { id: input, name: input };
+  if (!u) return interaction.editReply(err(`**${input}** not found.`));
+  const img = await getAvatarThumbnail(u.id).catch(() => null);
+  await interaction.editReply(card({
+    title:  `Outfit — ${u.name ?? input}`,
+    color:  COLORS.teal,
+    image:  img || undefined,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

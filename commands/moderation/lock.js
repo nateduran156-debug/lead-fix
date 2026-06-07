@@ -22,4 +22,24 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('lock')
+  .setDescription('prevent @everyone from sending messages in a channel')
+  .addChannelOption(o => o.setName('channel').setDescription('channel to lock (default: current)'))
+  .addStringOption(o => o.setName('reason').setDescription('reason for the lockdown'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
+
+async function execute(interaction) {
+  const ch     = interaction.options.getChannel('channel') || interaction.channel;
+  const reason = interaction.options.getString('reason') || 'No reason provided';
+  try {
+    await ch.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: false });
+    await interaction.reply(ok(`🔒 Locked ${ch}. ${reason}`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

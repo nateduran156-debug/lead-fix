@@ -18,4 +18,24 @@ async function prefixExecute(message) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('ping')
+  .setDescription('check the bot\'s response time and websocket latency');
+
+async function execute(interaction) {
+  const sent    = await interaction.reply({ content: 'Pinging…', fetchReply: true });
+  const latency = sent.createdTimestamp - interaction.createdTimestamp;
+  const ws      = interaction.client.ws.ping;
+  await interaction.editReply(card({
+    title:  'Pong!',
+    fields: [
+      { name: 'Roundtrip', value: `**${latency}ms**`, inline: true },
+      { name: 'Websocket', value: `**${ws}ms**`,      inline: true },
+    ],
+    color: COLORS.green,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

@@ -24,4 +24,25 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('unban')
+  .setDescription('unban a user so they can rejoin')
+  .addStringOption(o => o.setName('user_id').setDescription('Discord user ID to unban').setRequired(true))
+  .addStringOption(o => o.setName('reason').setDescription('reason for the unban'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers);
+
+async function execute(interaction) {
+  const userId = interaction.options.getString('user_id');
+  const reason = interaction.options.getString('reason') || 'No reason provided';
+  try {
+    const user = await interaction.client.users.fetch(userId).catch(() => null);
+    await interaction.guild.members.unban(userId, reason);
+    await interaction.reply(ok(`Unbanned **${user?.tag ?? userId}** — ${reason}`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

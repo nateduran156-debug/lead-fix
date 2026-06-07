@@ -63,4 +63,33 @@ async function prefixExecute(message, args) {
   return message.reply({ content: tag.content });
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('tag')
+  .setDescription('create, delete, or view saved tags (canned responses)')
+  .addSubcommand(s => s
+    .setName('create')
+    .setDescription('create a new tag')
+    .addStringOption(o => o.setName('name').setDescription('tag name').setRequired(true))
+    .addStringOption(o => o.setName('content').setDescription('tag content').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('delete')
+    .setDescription('delete an existing tag')
+    .addStringOption(o => o.setName('name').setDescription('tag to delete').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('view')
+    .setDescription('post a saved tag')
+    .addStringOption(o => o.setName('name').setDescription('tag name').setRequired(true)))
+  .addSubcommand(s => s.setName('list').setDescription('list all tags'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages);
+
+async function execute(interaction) {
+  const sub     = interaction.options.getSubcommand();
+  const name    = interaction.options.getString('name');
+  const content = interaction.options.getString('content');
+  const args    = [sub, name, content].filter(Boolean);
+  return prefixExecute(interaction, args);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

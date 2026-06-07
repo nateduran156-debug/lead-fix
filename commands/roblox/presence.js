@@ -51,4 +51,31 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('presence')
+  .setDescription('check if a Roblox user is currently online and what they are playing')
+  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID').setRequired(true));
+
+async function execute(interaction) {
+  const input = interaction.options.getString('user');
+  await interaction.deferReply();
+  const u = isNaN(input) ? await getUserByUsername(input).catch(() => null) : await getUserById(input).catch(() => null);
+  if (!u) return interaction.editReply(err(`**${input}** not found.`));
+  const p = await getUserPresence(u.id).catch(() => null);
+  const statusMap = { 0: '⚫ Offline', 1: '🟢 Online (Website)', 2: '🎮 In-Game', 3: '🔧 In Studio' };
+  const status = statusMap[p?.userPresenceType] ?? '⚫ Offline';
+  let gameName = '';
+  if (p?.placeId) {
+    const g = await getGameInfo(p.placeId).catch(() => null);
+    if (g) gameName = `\nPlaying: **${g.name}**`;
+  }
+  await interaction.editReply(card({
+    title: `Presence — ${u.displayName}`,
+    desc:  `${status}${gameName}`,
+    color: COLORS.teal,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

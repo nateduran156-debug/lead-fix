@@ -63,4 +63,33 @@ async function prefixExecute(message, args) {
   return message.reply(ok(`**${sub}** log channel set to ${ch}.`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('logs')
+  .setDescription('configure log channels for different event types')
+  .addSubcommand(s => s
+    .setName('setup')
+    .setDescription('set the fallback log channel')
+    .addChannelOption(o => o.setName('channel').setDescription('channel for logs').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('modlogs')
+    .setDescription('set the mod action log channel')
+    .addChannelOption(o => o.setName('channel').setDescription('channel for mod logs').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('messages')
+    .setDescription('set the message log channel')
+    .addChannelOption(o => o.setName('channel').setDescription('channel for message logs').setRequired(true)))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const sub = interaction.options.getSubcommand();
+  const ch  = interaction.options.getChannel('channel');
+  const guildId = interaction.guild.id;
+  ensureGuild(guildId);
+  const fieldMap = { setup: 'log_channel', modlogs: 'mod_log_channel', messages: 'message_log_channel' };
+  db.prepare(`UPDATE guilds SET ${fieldMap[sub]} = ? WHERE id = ?`).run(ch.id, guildId);
+  await interaction.reply(ok(`${sub.charAt(0).toUpperCase() + sub.slice(1)} log channel set to ${ch}.`));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

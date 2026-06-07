@@ -28,4 +28,25 @@ async function prefixExecute(message, args) {
   message.reply(ok(`Gave ${role} to **${given}** member(s).`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('roleall')
+  .setDescription('give a role to every member in the server')
+  .addRoleOption(o => o.setName('role').setDescription('role to assign').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles);
+
+async function execute(interaction) {
+  const role = interaction.options.getRole('role');
+  await interaction.deferReply();
+  const members = await interaction.guild.members.fetch();
+  let done = 0, failed = 0;
+  for (const [, m] of members) {
+    if (m.roles.cache.has(role.id)) continue;
+    await m.roles.add(role).then(() => done++).catch(() => failed++);
+    await new Promise(r => setTimeout(r, 100));
+  }
+  await interaction.editReply(ok(`Gave ${role} to **${done}** member(s)${failed ? `, ${failed} failed` : ''}.`));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

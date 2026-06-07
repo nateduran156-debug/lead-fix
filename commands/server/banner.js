@@ -19,4 +19,14 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('banner')
+  .setDescription('show the server banner image');
+
+async function execute(interaction) {
+  return prefixExecute(interaction, []);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

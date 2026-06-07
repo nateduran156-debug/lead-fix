@@ -55,4 +55,37 @@ async function prefixExecute(message, args) {
   return message.reply(listPayload(guildId));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('autoresponder')
+  .setDescription('manage automatic text responses')
+  .addSubcommand(s => s
+    .setName('add')
+    .setDescription('add an auto-response trigger')
+    .addStringOption(o => o.setName('trigger').setDescription('text that triggers the response').setRequired(true))
+    .addStringOption(o => o.setName('response').setDescription('response to send').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('remove')
+    .setDescription('remove an auto-response')
+    .addStringOption(o => o.setName('trigger').setDescription('trigger to remove').setRequired(true)))
+  .addSubcommand(s => s.setName('list').setDescription('list all auto-responses'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const sub = interaction.options.getSubcommand();
+  if (sub === 'add') {
+    const trigger  = interaction.options.getString('trigger');
+    const response = interaction.options.getString('response');
+    addAutoResponder(interaction.guild.id, trigger, response);
+    return interaction.reply(ok(`Auto-response added: \`${trigger}\` → *${response}*`));
+  }
+  if (sub === 'remove') {
+    const trigger = interaction.options.getString('trigger');
+    removeAutoResponder(interaction.guild.id, trigger);
+    return interaction.reply(ok(`Auto-response for \`${trigger}\` removed.`));
+  }
+  if (sub === 'list') return interaction.reply(listPayload(interaction.guild.id));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

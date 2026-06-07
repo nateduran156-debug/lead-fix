@@ -44,4 +44,37 @@ async function prefixExecute(message, args) {
   return message.reply(listPayload(guildId));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('rankroles')
+  .setDescription('manage roles automatically granted at rank point thresholds')
+  .addSubcommand(s => s
+    .setName('add')
+    .setDescription('add a rank role reward')
+    .addIntegerOption(o => o.setName('points').setDescription('rank points threshold').setRequired(true))
+    .addRoleOption(o => o.setName('role').setDescription('role to grant').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('remove')
+    .setDescription('remove a rank role reward')
+    .addRoleOption(o => o.setName('role').setDescription('role to remove').setRequired(true)))
+  .addSubcommand(s => s.setName('list').setDescription('list all rank role rewards'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles);
+
+async function execute(interaction) {
+  const sub = interaction.options.getSubcommand();
+  if (sub === 'add') {
+    const points = interaction.options.getInteger('points');
+    const role   = interaction.options.getRole('role');
+    addRankRole(interaction.guild.id, points, role.id);
+    return interaction.reply(ok(`Rank role added: **${points}** points → ${role}`));
+  }
+  if (sub === 'remove') {
+    const role = interaction.options.getRole('role');
+    removeRankRole(interaction.guild.id, role.id);
+    return interaction.reply(ok(`Rank role for ${role} removed.`));
+  }
+  if (sub === 'list') return interaction.reply(listPayload(interaction.guild.id));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

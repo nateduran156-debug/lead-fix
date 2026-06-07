@@ -44,4 +44,32 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('timeout')
+  .setDescription('temporarily mute a member')
+  .addUserOption(o => o.setName('user').setDescription('member to timeout').setRequired(true))
+  .addStringOption(o => o.setName('duration').setDescription('duration e.g. 10m 1h 7d').setRequired(true))
+  .addStringOption(o => o.setName('reason').setDescription('reason for the timeout'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+
+async function execute(interaction) {
+  const user     = interaction.options.getUser('user');
+  const durStr   = interaction.options.getString('duration');
+  const reason   = interaction.options.getString('reason') || 'No reason provided';
+  const member   = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (!member) return interaction.reply(err('That user is not in this server.'));
+  const ms = parseDuration(durStr);
+  if (!ms || ms < 1000) return interaction.reply(err('Invalid duration. Try `10m`, `1h`, `7d`.'));
+  if (ms > 28 * 24 * 60 * 60 * 1000) return interaction.reply(err('Maximum timeout is 28 days.'));
+  try {
+    await member.timeout(ms, reason);
+    const until = `<t:${Math.floor((Date.now() + ms) / 1000)}:R>`;
+    await interaction.reply(modCard({ action: 'Timeout', user, mod: interaction.user, reason, extra: `Expires ${until}` }));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

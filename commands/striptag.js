@@ -25,4 +25,25 @@ async function prefixExecute(message, args) {
   return message.reply(ok(`Stripped **${tagRoles.size}** tag role(s) from ${member.user.username}.`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('striptag')
+  .setDescription('remove all non-alphanumeric characters from a member\'s nickname')
+  .addUserOption(o => o.setName('user').setDescription('member to strip tags from').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames);
+
+async function execute(interaction) {
+  const user   = interaction.options.getUser('user');
+  const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (!member) return interaction.reply(err('Member not found.'));
+  const stripped = (member.nickname || member.user.username).replace(/[^a-zA-Z0-9 ]/g, '').trim() || member.user.username;
+  try {
+    await member.setNickname(stripped);
+    await interaction.reply(ok(`Stripped tags from ${user}: **${stripped}**`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

@@ -18,4 +18,17 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('avatar')
+  .setDescription('get a user\'s avatar as a full-size image')
+  .addUserOption(o => o.setName('user').setDescription('user to get avatar for (default: yourself)'));
+
+async function execute(interaction) {
+  const user = interaction.options.getUser('user') || interaction.user;
+  const url  = user.displayAvatarURL({ size: 1024, extension: 'png' });
+  await interaction.reply(card({ title: `${user.username}'s Avatar`, color: COLORS.blue, image: url }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

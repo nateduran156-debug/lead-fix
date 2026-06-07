@@ -18,4 +18,14 @@ async function prefixExecute(message) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('membercount')
+  .setDescription('show total member count split by humans and bots');
+
+async function execute(interaction) {
+  return prefixExecute(interaction, []);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

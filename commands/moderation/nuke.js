@@ -22,4 +22,26 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('nuke')
+  .setDescription('clone and delete this channel (clears all messages)')
+  .addStringOption(o => o.setName('reason').setDescription('reason'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
+
+async function execute(interaction) {
+  const reason = interaction.options.getString('reason') || 'Nuke';
+  try {
+    const ch     = interaction.channel;
+    const pos    = ch.position;
+    const cloned = await ch.clone({ reason });
+    await cloned.setPosition(pos);
+    await ch.delete(reason);
+    await cloned.send(ok(`This channel was nuked by ${interaction.user}.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

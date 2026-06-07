@@ -1,24 +1,27 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { ok, err } from '../../utils/components.js';
-import { getGuild, updateGuild } from '../../utils/database.js';
+'use strict';
 
-export const data = new SlashCommandBuilder()
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { ok, err }          = require('../../utils/components');
+const { updateGuild }      = require('../../utils/database');
+
+const data = new SlashCommandBuilder()
   .setName('prefix')
   .setDescription('change the bot prefix for this server')
   .addStringOption(o => o.setName('prefix').setDescription('new prefix (max 5 chars)').setRequired(true))
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
-export const aliases = ['setprefix'];
-export const usage = '!prefix <new prefix>';
+const category   = 'misc';
+const prefixName = 'prefix';
+const aliases    = ['setprefix'];
 
-export async function execute(interaction) {
+async function execute(interaction) {
   const p = interaction.options.getString('prefix');
   if (p.length > 5) return interaction.reply(err('prefix can be at most 5 characters'));
   updateGuild(interaction.guild.id, { prefix: p });
   return interaction.reply(ok(`prefix updated to \`${p}\``));
 }
 
-export async function prefixExecute(message, args) {
+async function prefixExecute(message, args) {
   if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild))
     return message.reply(err('you need Manage Server permission'));
   const p = args[0];
@@ -27,3 +30,5 @@ export async function prefixExecute(message, args) {
   updateGuild(message.guild.id, { prefix: p });
   return message.reply(ok(`prefix updated to \`${p}\``));
 }
+
+module.exports = { data, execute, prefixExecute, prefixName, aliases, category };

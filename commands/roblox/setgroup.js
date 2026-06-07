@@ -1,33 +1,38 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { ok, err } from '../../utils/components.js';
-import { updateGuild } from '../../utils/database.js';
-import { getGroup } from '../../utils/roblox.js';
+'use strict';
 
-export const data = new SlashCommandBuilder()
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { ok, err }       = require('../../utils/components');
+const { updateGuild }   = require('../../utils/database');
+const { getGroup }      = require('../../utils/roblox');
+
+const data = new SlashCommandBuilder()
   .setName('setgroup')
-  .setDescription('set the roblox group for this server')
-  .addStringOption(o => o.setName('groupid').setDescription('group id').setRequired(true))
+  .setDescription('link a Roblox group to this server')
+  .addStringOption(o => o.setName('groupid').setDescription('Roblox group ID').setRequired(true))
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
-export const aliases = ['linkgroup', 'sg'];
-export const usage = '!setgroup <groupid>';
+const category   = 'roblox';
+const prefixName = 'setgroup';
+const aliases    = ['linkgroup', 'sg'];
 
-export async function execute(interaction) {
+async function execute(interaction) {
   const groupId = interaction.options.getString('groupid');
   await interaction.deferReply();
   const g = await getGroup(groupId).catch(() => null);
-  if (!g) return interaction.editReply(err(`group **${groupId}** not found`));
+  if (!g) return interaction.editReply(err(`Group **${groupId}** not found.`));
   updateGuild(interaction.guild.id, { roblox_group_id: groupId });
-  await interaction.editReply(ok(`set roblox group to **${g.name}** (\`${groupId}\`)`));
+  await interaction.editReply(ok(`Roblox group set to **${g.name}** (\`${groupId}\`).`));
 }
 
-export async function prefixExecute(message, args) {
+async function prefixExecute(message, args) {
   if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild))
-    return message.reply(err('you need Manage Server permission'));
+    return message.reply(err('You need the **Manage Server** permission.'));
   const groupId = args[0];
-  if (!groupId) return message.reply(err('provide a group id'));
+  if (!groupId) return message.reply(err('Provide a group ID.'));
   const g = await getGroup(groupId).catch(() => null);
-  if (!g) return message.reply(err(`group **${groupId}** not found`));
+  if (!g) return message.reply(err(`Group **${groupId}** not found.`));
   updateGuild(message.guild.id, { roblox_group_id: groupId });
-  await message.reply(ok(`set roblox group to **${g.name}**`));
+  await message.reply(ok(`Roblox group set to **${g.name}**.`));
 }
+
+module.exports = { data, execute, prefixExecute, prefixName, aliases, category };

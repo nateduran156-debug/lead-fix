@@ -109,4 +109,83 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const slashData = new SlashCommandBuilder()
+  .setName('raidpoints')
+  .setDescription('manage raid points for members')
+  .addSubcommand(s => s
+    .setName('add')
+    .setDescription('add raid points to a member')
+    .addUserOption(o => o.setName('user').setDescription('member').setRequired(true))
+    .addIntegerOption(o => o.setName('amount').setDescription('points to add').setRequired(true).setMinValue(1)))
+  .addSubcommand(s => s
+    .setName('remove')
+    .setDescription('remove raid points from a member')
+    .addUserOption(o => o.setName('user').setDescription('member').setRequired(true))
+    .addIntegerOption(o => o.setName('amount').setDescription('points to remove').setRequired(true).setMinValue(1)))
+  .addSubcommand(s => s
+    .setName('check')
+    .setDescription('check a member\'s raid points')
+    .addUserOption(o => o.setName('user').setDescription('member').setRequired(true)))
+  .addSubcommand(s => s.setName('top').setDescription('view the raid points leaderboard'))
+  .addSubcommand(s => s
+    .setName('reset')
+    .setDescription('reset a member\'s raid points')
+    .addUserOption(o => o.setName('user').setDescription('member').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('transfer')
+    .setDescription('transfer raid points to rank points')
+    .addUserOption(o => o.setName('user').setDescription('member').setRequired(true))
+    .addIntegerOption(o => o.setName('multiplier').setDescription('multiplier (default 1)').setMinValue(1)))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const sub     = interaction.options.getSubcommand();
+  const guildId = interaction.guild.id;
+  const season  = getRaidSeason(guildId) || 1;
+
+  if (sub === 'add') {
+    const user   = interaction.options.getUser('user');
+    const amount = interaction.options.getInteger('amount');
+    modifyRaidPoints(user.id, guildId, season, amount);
+    const { points } = getRaidPoints(user.id, guildId, season) || { points: amount };
+    return interaction.reply(ok(`Added **${amount}** raid points to ${user}. Total: **${points}**.`));
+  }
+  if (sub === 'remove') {
+    const user   = interaction.options.getUser('user');
+    const amount = interaction.options.getInteger('amount');
+    modifyRaidPoints(user.id, guildId, season, -amount);
+    const row = getRaidPoints(user.id, guildId, season);
+    return interaction.reply(ok(`Removed **${amount}** raid points from ${user}. Total: **${row?.points ?? 0}**.`));
+  }
+  if (sub === 'check') {
+    const user = interaction.options.getUser('user');
+    const row  = getRaidPoints(user.id, guildId, season);
+    return interaction.reply(card({ title: `Raid Points — ${user.username}`, desc: `**${row?.points ?? 0}** points (Season ${season})`, color: COLORS.red }));
+  }
+  if (sub === 'top') {
+    const lb = getRaidLeaderboard(guildId, season).slice(0, 10);
+    if (!lb.length) return interaction.reply(err('No raid points logged yet.'));
+    const list = lb.map((r, i) => `**${i + 1}.** <@${r.user_id}> — **${r.points}** pts`).join('\n');
+    return interaction.reply(card({ title: `Raid Leaderboard — Season ${season}`, desc: list, color: COLORS.red }));
+  }
+  if (sub === 'reset') {
+    const user = interaction.options.getUser('user');
+    setRaidPoints(user.id, guildId, season, 0);
+    return interaction.reply(ok(`Reset raid points for ${user}.`));
+  }
+  if (sub === 'transfer') {
+    const user       = interaction.options.getUser('user');
+    const multiplier = interaction.options.getInteger('multiplier') || 1;
+    const row        = getRaidPoints(user.id, guildId, season);
+    const pts        = row?.points ?? 0;
+    const rank       = Math.floor(pts * multiplier);
+    modifyRankPoints(user.id, guildId, rank);
+    setRaidPoints(user.id, guildId, season, 0);
+    await applyRankRoles(interaction.guild, user.id);
+    return interaction.reply(ok(`Transferred **${pts}** raid pts × ${multiplier} = **${rank}** rank pts for ${user}.`));
+  }
+}
+
+module.exports = { data: slashData, execute, prefixName, aliases, category, prefixExecute };

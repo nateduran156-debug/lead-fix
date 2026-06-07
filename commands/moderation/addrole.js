@@ -26,4 +26,26 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('addrole')
+  .setDescription('give a role to a specific member')
+  .addUserOption(o => o.setName('user').setDescription('member to give the role to').setRequired(true))
+  .addRoleOption(o => o.setName('role').setDescription('role to assign').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles);
+
+async function execute(interaction) {
+  const user   = interaction.options.getUser('user');
+  const role   = interaction.options.getRole('role');
+  const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (!member) return interaction.reply(err('Member not found.'));
+  try {
+    await member.roles.add(role);
+    await interaction.reply(ok(`Gave ${role} to ${user}.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

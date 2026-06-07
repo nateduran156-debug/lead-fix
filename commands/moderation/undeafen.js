@@ -25,4 +25,24 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('undeafen')
+  .setDescription('remove server-deafen from a member in voice')
+  .addUserOption(o => o.setName('user').setDescription('member to undeafen').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.DeafenMembers);
+
+async function execute(interaction) {
+  const user   = interaction.options.getUser('user');
+  const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (!member) return interaction.reply(err('Member not found.'));
+  try {
+    await member.voice.setDeaf(false);
+    await interaction.reply(ok(`Undeafened ${user}.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

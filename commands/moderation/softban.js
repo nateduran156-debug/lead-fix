@@ -32,4 +32,27 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('softban')
+  .setDescription('ban then immediately unban to wipe recent messages')
+  .addUserOption(o => o.setName('user').setDescription('member to softban').setRequired(true))
+  .addStringOption(o => o.setName('reason').setDescription('reason for the softban'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers);
+
+async function execute(interaction) {
+  const user   = interaction.options.getUser('user');
+  const reason = interaction.options.getString('reason') || 'Softban';
+  const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (member && !member.bannable) return interaction.reply(err('I cannot ban that member.'));
+  try {
+    await interaction.guild.members.ban(user, { reason, deleteMessageDays: 7 });
+    await interaction.guild.members.unban(user.id, 'Softban — auto-unban');
+    await interaction.reply(modCard({ action: 'Softban', user, mod: interaction.user, reason }));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

@@ -165,4 +165,29 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute, handleOpen, handleClose };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('setupticket')
+  .setDescription('configure the ticket system')
+  .addSubcommand(s => s
+    .setName('setup')
+    .setDescription('create the ticket panel in a channel')
+    .addChannelOption(o => o.setName('channel').setDescription('channel for the ticket panel').setRequired(true))
+    .addStringOption(o => o.setName('message').setDescription('button panel message text')))
+  .addSubcommand(s => s
+    .setName('category')
+    .setDescription('set which category new ticket channels are created in')
+    .addChannelOption(o => o.setName('category').setDescription('category channel').setRequired(true)))
+  .addSubcommand(s => s.setName('disable').setDescription('disable the ticket system'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const sub  = interaction.options.getSubcommand();
+  const ch   = interaction.options.getChannel('channel') || interaction.options.getChannel('category');
+  const msg  = interaction.options.getString('message') || '';
+  const args = [sub, ch?.id, msg].filter(Boolean);
+  return prefixExecute(interaction, args);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute, handleOpen, handleClose };

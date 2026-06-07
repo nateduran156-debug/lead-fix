@@ -33,4 +33,23 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('groupwall')
+  .setDescription('view recent Roblox group wall posts')
+  .addStringOption(o => o.setName('groupid').setDescription('Roblox group ID (default: server\'s group)'));
+
+async function execute(interaction) {
+  const groupId = interaction.options.getString('groupid');
+  await interaction.deferReply();
+  const posts = await getGroupWall(groupId).catch(() => null);
+  if (!posts?.length) return interaction.editReply(err(`No wall posts found for group **${groupId}**.`));
+  await interaction.editReply(card({
+    title: `Group Wall — ${groupId}`,
+    desc:  posts.slice(0, 5).map(p => `**${p.poster?.displayName ?? 'Unknown'}:** ${p.body?.slice(0, 100) ?? ''}`).join('\n'),
+    color: COLORS.teal,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

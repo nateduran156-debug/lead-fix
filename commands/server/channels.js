@@ -20,4 +20,14 @@ async function prefixExecute(message) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('channels')
+  .setDescription('show a count breakdown of all channel types in the server');
+
+async function execute(interaction) {
+  return prefixExecute(interaction, []);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

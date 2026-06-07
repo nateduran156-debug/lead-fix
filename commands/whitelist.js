@@ -142,4 +142,41 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('wl')
+  .setDescription('manage the bot whitelist — control who can use restricted commands')
+  .addSubcommand(s => s
+    .setName('adduser')
+    .setDescription('whitelist a user for a command category')
+    .addUserOption(o => o.setName('user').setDescription('user to whitelist').setRequired(true))
+    .addStringOption(o => o.setName('category').setDescription('command category (leave blank for all)').setRequired(false)))
+  .addSubcommand(s => s
+    .setName('removeuser')
+    .setDescription('remove a user from the whitelist')
+    .addUserOption(o => o.setName('user').setDescription('user to remove').setRequired(true))
+    .addStringOption(o => o.setName('category').setDescription('category (blank = all)').setRequired(false)))
+  .addSubcommand(s => s
+    .setName('addrole')
+    .setDescription('whitelist a role for a command category')
+    .addRoleOption(o => o.setName('role').setDescription('role to whitelist').setRequired(true))
+    .addStringOption(o => o.setName('category').setDescription('command category').setRequired(false)))
+  .addSubcommand(s => s
+    .setName('removerole')
+    .setDescription('remove a role from the whitelist')
+    .addRoleOption(o => o.setName('role').setDescription('role to remove').setRequired(true))
+    .addStringOption(o => o.setName('category').setDescription('category').setRequired(false)))
+  .addSubcommand(s => s.setName('list').setDescription('show all whitelisted users and roles'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
+async function execute(interaction) {
+  const sub  = interaction.options.getSubcommand();
+  const user = interaction.options.getUser('user');
+  const role = interaction.options.getRole('role');
+  const cat  = interaction.options.getString('category') || 'all';
+  const args = [sub, user?.id ?? role?.id, cat].filter(Boolean);
+  return prefixExecute(interaction, args);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

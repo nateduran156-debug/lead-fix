@@ -37,4 +37,32 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('tempban')
+  .setDescription('ban a user for a set duration')
+  .addUserOption(o => o.setName('user').setDescription('member to tempban').setRequired(true))
+  .addStringOption(o => o.setName('duration').setDescription('duration e.g. 1h 7d 30m').setRequired(true))
+  .addStringOption(o => o.setName('reason').setDescription('reason for the tempban'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers);
+
+async function execute(interaction) {
+  const user   = interaction.options.getUser('user');
+  const durStr = interaction.options.getString('duration');
+  const reason = interaction.options.getString('reason') || 'No reason provided';
+  const ms     = parseDuration(durStr);
+  if (!ms) return interaction.reply(err('Invalid duration. Try `1h`, `7d`, `30m`.'));
+  const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+  if (member && !member.bannable) return interaction.reply(err('I cannot ban that member.'));
+  try {
+    await interaction.guild.members.ban(user, { reason });
+    setTimeout(() => interaction.guild.members.unban(user.id, 'Tempban expired').catch(() => {}), ms);
+    const until = `<t:${Math.floor((Date.now() + ms) / 1000)}:R>`;
+    await interaction.reply(modCard({ action: 'Tempban', user, mod: interaction.user, reason, extra: `Unbanned ${until}` }));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

@@ -26,4 +26,22 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('deleterole')
+  .setDescription('delete an existing role')
+  .addRoleOption(o => o.setName('role').setDescription('role to delete').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles);
+
+async function execute(interaction) {
+  const role = interaction.options.getRole('role');
+  try {
+    await role.delete();
+    await interaction.reply(ok(`Deleted role **${role.name}**.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

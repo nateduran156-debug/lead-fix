@@ -22,4 +22,20 @@ async function prefixExecute(message, args) {
   return message.reply(ok(`Note saved for ${member}: **${note}**`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('note')
+  .setDescription('add a private moderator note to a user\'s record')
+  .addUserOption(o => o.setName('user').setDescription('user to note').setRequired(true))
+  .addStringOption(o => o.setName('note').setDescription('note content').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+
+async function execute(interaction) {
+  const user = interaction.options.getUser('user');
+  const note = interaction.options.getString('note');
+  addWarning(interaction.guild.id, user.id, interaction.user.id, `[NOTE] ${note}`);
+  await interaction.reply(ok(`Note added for ${user}: *${note}*`));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

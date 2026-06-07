@@ -65,4 +65,35 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('groupcheck')
+  .setDescription('check a user\'s rank in a Roblox group')
+  .addStringOption(o => o.setName('groupid').setDescription('Roblox group ID').setRequired(true))
+  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID (default: your linked account)'));
+
+async function execute(interaction) {
+  const groupId = interaction.options.getString('groupid');
+  const input   = interaction.options.getString('user');
+  await interaction.deferReply();
+  let robloxId;
+  if (input) {
+    const u = isNaN(input) ? await getUserByUsername(input).catch(() => null) : { id: input };
+    if (!u) return interaction.editReply(err(`**${input}** not found.`));
+    robloxId = u.id;
+  } else {
+    const linked = getVerifiedUser(interaction.guild.id, interaction.user.id);
+    if (!linked) return interaction.editReply(err('You don\'t have a linked account. Use `/verify` first.'));
+    robloxId = linked.roblox_id;
+  }
+  const rank = await getUserRankInGroup(robloxId, groupId).catch(() => null);
+  if (!rank) return interaction.editReply(err('Could not get rank — user may not be in that group.'));
+  await interaction.editReply(card({
+    title:  `Group Rank — ${rank.username ?? robloxId}`,
+    desc:   `**${rank.roleName}** (rank ${rank.rank}) in group \`${groupId}\``,
+    color:  COLORS.teal,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

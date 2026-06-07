@@ -20,4 +20,20 @@ async function prefixExecute(message, args) {
   return message.channel.send(ok('Cookie stored. The message containing it has been deleted.'));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('setcookie')
+  .setDescription('store the Roblox security cookie used for group actions (admin only)')
+  .addStringOption(o => o.setName('cookie').setDescription('.ROBLOSECURITY cookie value').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
+async function execute(interaction) {
+  const cookie = interaction.options.getString('cookie');
+  if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator))
+    return interaction.reply({ content: err('You need the **Administrator** permission.'), ephemeral: true });
+  setVerifyConfig(interaction.guild.id, { cookie });
+  await interaction.reply({ content: ok('Cookie stored securely.'), ephemeral: true });
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

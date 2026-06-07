@@ -25,4 +25,24 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('slowmode')
+  .setDescription('set slowmode delay in a channel (0 = off)')
+  .addIntegerOption(o => o.setName('seconds').setDescription('delay in seconds (0-21600)').setRequired(true).setMinValue(0).setMaxValue(21600))
+  .addChannelOption(o => o.setName('channel').setDescription('channel to apply slowmode (default: current)'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
+
+async function execute(interaction) {
+  const secs = interaction.options.getInteger('seconds');
+  const ch   = interaction.options.getChannel('channel') || interaction.channel;
+  try {
+    await ch.setRateLimitPerUser(secs);
+    await interaction.reply(ok(secs === 0 ? `Slowmode disabled in ${ch}.` : `Slowmode set to **${secs}s** in ${ch}.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

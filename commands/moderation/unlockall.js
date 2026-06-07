@@ -24,4 +24,22 @@ async function prefixExecute(message, args) {
   message.reply(ok(`🔓 Unlocked **${unlocked}** channels.`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('unlockall')
+  .setDescription('unlock all previously locked channels')
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
+
+async function execute(interaction) {
+  await interaction.deferReply();
+  const channels = interaction.guild.channels.cache.filter(c => c.isTextBased());
+  let unlocked = 0;
+  for (const [, ch] of channels) {
+    await ch.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: null }).catch(() => {});
+    unlocked++;
+  }
+  await interaction.editReply(ok(`🔓 Unlocked **${unlocked}** channel(s).`));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

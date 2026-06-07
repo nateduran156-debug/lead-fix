@@ -33,4 +33,26 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('badges')
+  .setDescription('list the badges a Roblox user has earned')
+  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID').setRequired(true));
+
+async function execute(interaction) {
+  const input = interaction.options.getString('user');
+  await interaction.deferReply();
+  const u      = isNaN(input) ? await getUserByUsername(input).catch(() => null) : { id: input, name: input };
+  if (!u) return interaction.editReply(err(`**${input}** not found.`));
+  const badges = await getUserBadges(u.id).catch(() => null);
+  if (!badges?.length) return interaction.editReply(err(`No badges found for **${u.name ?? input}**.`));
+  await interaction.editReply(card({
+    title: `Badges — ${u.name ?? input}`,
+    desc:  badges.slice(0, 15).map(b => `**${b.name}** — ${b.description?.slice(0, 60) || ''}`).join('\n'),
+    color: COLORS.teal,
+    footer: `${badges.length} total badges`,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

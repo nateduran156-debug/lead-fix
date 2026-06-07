@@ -61,4 +61,41 @@ async function prefixExecute(message, args) {
   return message.reply(listPayload(guildId));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('alias')
+  .setDescription('manage custom command aliases')
+  .addSubcommand(s => s
+    .setName('add')
+    .setDescription('add a custom alias')
+    .addStringOption(o => o.setName('alias').setDescription('alias name').setRequired(true))
+    .addStringOption(o => o.setName('command').setDescription('command it maps to').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('remove')
+    .setDescription('remove a custom alias')
+    .addStringOption(o => o.setName('alias').setDescription('alias to remove').setRequired(true)))
+  .addSubcommand(s => s.setName('list').setDescription('list all custom aliases'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const sub = interaction.options.getSubcommand();
+  if (sub === 'add') {
+    const alias = interaction.options.getString('alias').toLowerCase();
+    const cmd   = interaction.options.getString('command').toLowerCase();
+    addCustomAlias(interaction.guild.id, alias, cmd);
+    return interaction.reply(ok(`Alias \`${alias}\` → \`${cmd}\` added.`));
+  }
+  if (sub === 'remove') {
+    const alias = interaction.options.getString('alias').toLowerCase();
+    removeCustomAlias(interaction.guild.id, alias);
+    return interaction.reply(ok(`Alias \`${alias}\` removed.`));
+  }
+  if (sub === 'list') {
+    const rows = getCustomAliases(interaction.guild.id);
+    if (!rows.length) return interaction.reply(err('No custom aliases set.'));
+    return interaction.reply(card({ title: 'Custom Aliases', desc: rows.map(r => `\`${r.alias}\` → \`${r.command}\``).join('\n'), color: COLORS.blue }));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

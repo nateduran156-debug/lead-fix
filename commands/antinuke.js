@@ -142,4 +142,29 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('antinuke')
+  .setDescription('configure the anti-nuke protection system')
+  .addSubcommand(s => s.setName('enable').setDescription('enable anti-nuke protection'))
+  .addSubcommand(s => s.setName('disable').setDescription('disable anti-nuke protection'))
+  .addSubcommand(s => s
+    .setName('threshold')
+    .setDescription('set the action threshold before punishment triggers')
+    .addIntegerOption(o => o.setName('count').setDescription('number of actions before punishment').setRequired(true).setMinValue(1)))
+  .addSubcommand(s => s
+    .setName('punishment')
+    .setDescription('set what happens when nuke threshold is hit')
+    .addStringOption(o => o.setName('action').setDescription('punishment action').setRequired(true).addChoices(
+      { name: 'Ban',  value: 'ban' },
+      { name: 'Kick', value: 'kick' },
+    )))
+  .addSubcommand(s => s.setName('status').setDescription('show current anti-nuke settings'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
+async function execute(interaction) {
+  return prefixExecute(interaction, [interaction.options.getSubcommand(), interaction.options.getInteger('count') ?? interaction.options.getString('action') ?? ''].filter(Boolean));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

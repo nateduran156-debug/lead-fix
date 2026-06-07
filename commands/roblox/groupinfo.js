@@ -37,4 +37,30 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('groupinfo')
+  .setDescription('show info about a Roblox group')
+  .addStringOption(o => o.setName('groupid').setDescription('Roblox group ID (default: server\'s group)'));
+
+async function execute(interaction) {
+  const groupId = interaction.options.getString('groupid');
+  await interaction.deferReply();
+  const g = await getGroupInfo(groupId).catch(() => null);
+  if (!g) return interaction.editReply(err(`Group **${groupId}** not found.`));
+  const icon = await getGroupIcon(groupId).catch(() => null);
+  await interaction.editReply(card({
+    title:  g.name,
+    desc:   g.description?.slice(0, 300) || 'No description.',
+    fields: [
+      { name: 'Members',  value: g.memberCount?.toLocaleString() ?? '?', inline: true },
+      { name: 'Owner',    value: g.owner?.displayName ?? 'Unknown',       inline: true },
+      { name: 'ID',       value: String(g.id),                            inline: true },
+    ],
+    color: COLORS.teal,
+    image: icon || undefined,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

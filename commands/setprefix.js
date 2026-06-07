@@ -21,4 +21,19 @@ async function prefixExecute(message, args) {
   return message.reply(ok(`Prefix updated to \`${newPrefix}\`.`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('setprefix')
+  .setDescription('change the bot\'s command prefix for this server')
+  .addStringOption(o => o.setName('prefix').setDescription('new prefix (max 5 characters)').setRequired(true).setMaxLength(5))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+async function execute(interaction) {
+  const newPrefix = interaction.options.getString('prefix');
+  if (newPrefix.length > 5) return interaction.reply(err('The prefix must be 5 characters or fewer.'));
+  setPrefix(interaction.guild.id, newPrefix);
+  await interaction.reply(ok(`Prefix updated to \`${newPrefix}\`.`));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

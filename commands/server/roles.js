@@ -21,4 +21,14 @@ async function prefixExecute(message) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('roles')
+  .setDescription('list all roles in the server with their member counts');
+
+async function execute(interaction) {
+  return prefixExecute(interaction, []);
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

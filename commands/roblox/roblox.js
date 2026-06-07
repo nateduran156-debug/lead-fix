@@ -44,4 +44,32 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('roblox')
+  .setDescription('look up a Roblox user — profile, avatar, badges')
+  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID').setRequired(true));
+
+async function execute(interaction) {
+  const input = interaction.options.getString('user');
+  await interaction.deferReply();
+  const u = isNaN(input)
+    ? await getUserByUsername(input).catch(() => null)
+    : await getUserById(input).catch(() => null);
+  if (!u) return interaction.editReply(err(`**${input}** not found on Roblox.`));
+  const hs = await getHeadshot(u.id).catch(() => null);
+  await interaction.editReply(card({
+    title:  u.displayName,
+    desc:   `**[@${u.name}](https://www.roblox.com/users/${u.id}/profile)**\n${u.description?.slice(0, 200) || ''}`,
+    fields: [
+      { name: 'ID',      value: String(u.id),                                                              inline: true },
+      { name: 'Created', value: `<t:${Math.floor(new Date(u.created).getTime() / 1000)}:D>`,              inline: true },
+      { name: 'Profile', value: `[View](https://www.roblox.com/users/${u.id}/profile)`,                   inline: true },
+    ],
+    color: COLORS.teal,
+    image: hs || undefined,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

@@ -36,4 +36,28 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('friends')
+  .setDescription('show a Roblox user\'s friends list')
+  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID').setRequired(true));
+
+async function execute(interaction) {
+  const input = interaction.options.getString('user');
+  await interaction.deferReply();
+  const u       = isNaN(input) ? await getUserByUsername(input).catch(() => null) : { id: input, name: input };
+  if (!u) return interaction.editReply(err(`**${input}** not found.`));
+  const count   = await getFriendCount(u.id).catch(() => null);
+  const friends = await getUserFriends(u.id).catch(() => null);
+  if (!friends) return interaction.editReply(err('Could not fetch friends.'));
+  const names = friends.slice(0, 10).map(f => `[${f.displayName}](https://www.roblox.com/users/${f.id}/profile)`).join(', ');
+  await interaction.editReply(card({
+    title:  `Friends — ${u.name ?? input}`,
+    desc:   names || 'No friends.',
+    color:  COLORS.teal,
+    footer: count != null ? `${count} total friends` : undefined,
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

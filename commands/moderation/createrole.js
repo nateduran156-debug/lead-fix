@@ -22,4 +22,24 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('createrole')
+  .setDescription('create a new role')
+  .addStringOption(o => o.setName('name').setDescription('role name').setRequired(true))
+  .addStringOption(o => o.setName('color').setDescription('hex color e.g. #FF0000'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles);
+
+async function execute(interaction) {
+  const name  = interaction.options.getString('name');
+  const color = interaction.options.getString('color') || null;
+  try {
+    const role = await interaction.guild.roles.create({ name, color: color || undefined });
+    await interaction.reply(ok(`Created role ${role}.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

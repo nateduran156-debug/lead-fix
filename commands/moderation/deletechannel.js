@@ -25,4 +25,22 @@ async function prefixExecute(message, args) {
   }
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('deletechannel')
+  .setDescription('delete a channel from the server')
+  .addChannelOption(o => o.setName('channel').setDescription('channel to delete').setRequired(true))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
+
+async function execute(interaction) {
+  const ch = interaction.options.getChannel('channel');
+  try {
+    await ch.delete();
+    await interaction.reply(ok(`Deleted channel **${ch.name}**.`));
+  } catch (e) {
+    await interaction.reply(err(`Failed: ${e.message}`));
+  }
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

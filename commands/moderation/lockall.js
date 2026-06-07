@@ -24,4 +24,24 @@ async function prefixExecute(message, args) {
   message.reply(ok(`🔒 Locked **${locked}** channels — **${reason}**`));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('lockall')
+  .setDescription('lock every text channel in the server')
+  .addStringOption(o => o.setName('reason').setDescription('reason for the server lockdown'))
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
+
+async function execute(interaction) {
+  const reason = interaction.options.getString('reason') || 'Server lockdown';
+  await interaction.deferReply();
+  const channels = interaction.guild.channels.cache.filter(c => c.isTextBased() && c.permissionsFor(interaction.guild.roles.everyone)?.has('SendMessages'));
+  let locked = 0;
+  for (const [, ch] of channels) {
+    await ch.permissionOverwrites.edit(interaction.guild.roles.everyone, { SendMessages: false }).catch(() => {});
+    locked++;
+  }
+  await interaction.editReply(ok(`🔒 Locked **${locked}** channel(s). Reason: ${reason}`));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };

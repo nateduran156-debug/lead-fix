@@ -33,4 +33,30 @@ async function prefixExecute(message, args) {
   }));
 }
 
-module.exports = { prefixName, aliases, category, prefixExecute };
+const { SlashCommandBuilder } = require('discord.js');
+
+const data = new SlashCommandBuilder()
+  .setName('userinfo')
+  .setDescription('show Discord info about a user')
+  .addUserOption(o => o.setName('user').setDescription('user to look up (default: yourself)'));
+
+async function execute(interaction) {
+  const user   = interaction.options.getUser('user') || interaction.user;
+  const member = await interaction.guild.members.fetch(user.id).catch(() => null) || { user, roles: { cache: new Map() } };
+  const roles  = member.roles?.cache ? [...member.roles.cache.values()].filter(r => r.id !== interaction.guild.id) : [];
+  const joined = member.joinedAt ? `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:R>` : 'Unknown';
+  const created = `<t:${Math.floor(user.createdAt.getTime() / 1000)}:R>`;
+  await interaction.reply(card({
+    title: user.tag ?? user.username,
+    fields: [
+      { name: 'ID',        value: user.id,                                   inline: true },
+      { name: 'Created',  value: created,                                    inline: true },
+      { name: 'Joined',   value: joined,                                     inline: true },
+      { name: 'Roles',    value: roles.slice(0, 10).join(' ') || 'None',     inline: false },
+    ],
+    color: COLORS.blue,
+    image: user.displayAvatarURL({ size: 256 }),
+  }));
+}
+
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };
