@@ -45,6 +45,22 @@ module.exports = {
       return;
     }
 
+    // ── Select menus ─────────────────────────────────────────────────────────
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === 'ticket_tag_select') {
+        const { handleTagSelect } = require('./ticketButton');
+        try {
+          await handleTagSelect(interaction, client);
+        } catch (e) {
+          console.error(`[TicketTagSelect] ${e.message}`);
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ ...err(`An error occurred: ${e.message}`), ephemeral: true }).catch(() => {});
+          }
+        }
+        return;
+      }
+    }
+
     // ── Modal submits ────────────────────────────────────────────────────────
     if (interaction.isModalSubmit()) {
       const id = interaction.customId;
@@ -111,10 +127,10 @@ module.exports = {
       // ── Staff ticket buttons ─────────────────────────────────────────────────
       if (
         id === 'ticket_close' ||
+        id === 'tag_req_deny' ||
         id.startsWith('ticket_verify_') ||
         id.startsWith('ticket_kick_') ||
-        id.startsWith('ticket_claim_') ||
-        id.startsWith('ticket_accept_')
+        id.startsWith('tag_req_approve_')
       ) {
         try {
           await handleStaffButton(interaction, client);
