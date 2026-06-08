@@ -4,6 +4,7 @@ const {
   getTicket, closeTicket, openTicket,
   getTicketConfig, getTagManagers, getVerifyConfig,
 } = require('../utils/database');
+const { isWhitelisted } = require('../utils/whitelist');
 const { ok, err, COLORS } = require('../utils/components');
 const {
   ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder,
@@ -58,6 +59,8 @@ const ticketGroupsCache = new Map();
 
 function isFullyWhitelisted(member, guildId) {
   if (HARDCODED_TAG_ADMINS.includes(member.id)) return true;
+  if (isWhitelisted(member, 'tickets')) return true;
+  if (isWhitelisted(member, 'tags')) return true;
   const wl = getTagManagers(guildId);
   if (wl.users.includes(member.id)) return true;
   for (const roleId of member.roles.cache.keys()) {
