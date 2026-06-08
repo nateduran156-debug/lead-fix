@@ -18,7 +18,7 @@ const ACCENT = 0xDD58FB;
 const ACCEPT_ROLE = '1505970868805697659';
 
 const TAG_TICKET_CATEGORY    = '1511974634566844476';
-const VERIFY_TICKET_CATEGORY = '1505968539805417553';
+const VERIFY_TICKET_CATEGORY = '1513373676312203335';
 
 const S = (d = true) =>
   new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(d);
