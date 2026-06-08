@@ -2,7 +2,7 @@
 
 const {
   getTicket, closeTicket, openTicket,
-  getTicketConfig, getTagManagers,
+  getTicketConfig, getTagManagers, getVerifyConfig,
 } = require('../utils/database');
 const { ok, err, COLORS } = require('../utils/components');
 const {
@@ -14,6 +14,7 @@ const {
 } = require('discord.js');
 const {
   getUserByUsername, getUserGroups, getUserRankInGroup, getHeadshot, getGroupIcon,
+  getGroupRoles, rankUser,
 } = require('../utils/roblox');
 
 const CV2    = MessageFlags.IsComponentsV2;
@@ -444,26 +445,54 @@ async function handleStaffButton(interaction, client) {
     const ticket = getTicket(interaction.channel.id);
     if (!ticket) return interaction.reply({ ...err('Ticket data not found.'), ephemeral: true });
 
-    const targetMember = await interaction.guild.members.fetch(ticket.user_id).catch(() => null);
-    if (!targetMember) return interaction.reply({ ...err('Could not find the ticket opener.'), ephemeral: true });
+    // Get the Roblox user ID from the channel topic (set as roblox:<id>:<name>)
+    const topic = interaction.channel.topic ?? '';
+    const topicMatch = topic.match(/^roblox:(\d+):(.+)$/);
+    if (!topicMatch) {
+      return interaction.reply({ ...err('Could not find the Roblox user linked to this ticket. The channel topic may be missing.'), ephemeral: true });
+    }
+    const robloxId   = topicMatch[1];
+    const robloxName = topicMatch[2];
 
-    const role = interaction.guild.roles.cache.find(r => r.name === tagDef.roleName);
-    if (!role) {
-      return interaction.reply({ ...err(`Could not find a role named **${tagDef.roleName}** in this server.`), ephemeral: true });
+    const cfg = getVerifyConfig(guildId);
+    if (!cfg?.cookie) {
+      return interaction.reply({ ...err('No Roblox cookie configured. Use `.setcookie <cookie>` first.'), ephemeral: true });
     }
 
+    await interaction.deferReply({ ephemeral: false });
+
+    // Fetch available roles from the Roblox group
+    let groupRoles;
     try {
-      await targetMember.roles.add(role);
+      groupRoles = await getGroupRoles(tagDef.groupId, cfg.cookie);
     } catch (e) {
-      return interaction.reply({ ...err(`Failed to add role: ${e.message}`), ephemeral: true });
+      return interaction.editReply(err(`Failed to fetch roles for group \`${tagDef.groupId}\`: ${e.message}`));
+    }
+
+    const groupRole = groupRoles.find(r => r.name.toLowerCase() === tagDef.roleName.toLowerCase());
+    if (!groupRole) {
+      return interaction.editReply(err(`Role **${tagDef.roleName}** not found in Roblox group \`${tagDef.groupId}\`.`));
+    }
+
+    // Check the user is in the group before ranking
+    const memberCheck = await getUserRankInGroup(robloxId, tagDef.groupId).catch(() => null);
+    if (!memberCheck) {
+      return interaction.editReply(err(`**${robloxName}** is not a member of group \`${tagDef.groupId}\`. They must join first.`));
+    }
+
+    // Rank the user in the Roblox group
+    try {
+      await rankUser(tagDef.groupId, robloxId, groupRole.id, cfg.cookie);
+    } catch (e) {
+      return interaction.editReply(err(`Failed to apply Roblox tag: ${e.message}`));
     }
 
     const displayLabel = TAG_CHOICES.find(t => t.value === tagKey)?.label ?? tagKey;
     const c = new ContainerBuilder().setAccentColor(COLORS.green)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `## Tag Approved\n${targetMember} has been given the **${displayLabel}** tag by ${interaction.user}.\nRole: <@&${role.id}>`
+        `## Tag Approved\n**${robloxName}** (\`${robloxId}\`) has been given the **${displayLabel}** Roblox tag by ${interaction.user}.`
       ));
-    return interaction.reply({ flags: CV2, components: [c] });
+    return interaction.editReply({ flags: CV2, components: [c] });
   }
 
   // Tag deny
