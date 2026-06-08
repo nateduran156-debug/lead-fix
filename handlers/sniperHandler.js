@@ -1,8 +1,8 @@
 'use strict';
 
-const { getAllSniperTargets }                              = require('../utils/database');
-const { getUserPresence, getHeadshot, getGameInfo }       = require('../utils/roblox');
-const { CV2, COLORS, C }                                   = require('../utils/components');
+const { getAllSniperTargets }                        = require('../utils/database');
+const { getUserPresence, getHeadshot, getGameInfo }  = require('../utils/roblox');
+const { CV2, COLORS, C }                             = require('../utils/components');
 const {
   ContainerBuilder,
   TextDisplayBuilder,
@@ -13,9 +13,10 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ActionRowBuilder,
+  MessageFlags,
 } = require('discord.js');
 
-const presenceCache = new Map(); // roblox_id → last known presence type
+const presenceCache = new Map();
 
 const S = (divider = true) =>
   new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(divider);
@@ -40,8 +41,8 @@ async function runSniperCheck(client) {
   }
 
   for (const presence of presences) {
-    const userId  = String(presence.userId);
-    const prev    = presenceCache.get(userId);
+    const userId   = String(presence.userId);
+    const prev     = presenceCache.get(userId);
     const isOnline = presence.userPresenceType >= 1;
 
     if (isOnline && !prev) {
@@ -67,54 +68,45 @@ async function notifySniper(client, target, presence) {
       gameInfo = await getGameInfo(presence.universeId).catch(() => null);
     }
 
-    // ── Build alert embed (Components V2) ──────────────────────────────────
-
     const statusLine = presenceText(presence, gameInfo);
 
-    // Section with thumbnail (avatar top-right)
-    const sectionText = [
-      `## 🎯 ${target.roblox_username} is online`,
-      `**status** ${statusLine}`,
-      gameInfo ? `**game** ${gameInfo.name}` : null,
-    ].filter(Boolean).join('\n');
-
-    const thumbnail = headshotUrl
-      ? new ThumbnailBuilder().setURL(headshotUrl)
-      : null;
+    const sectionLines = [
+      `**${target.roblox_username} is online**`,
+      `status ${statusLine}`,
+    ];
+    if (gameInfo) sectionLines.push(`game ${gameInfo.name}`);
 
     const section = new SectionBuilder()
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(sectionText));
-    if (thumbnail) section.setThumbnailAccessory(thumbnail);
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(sectionLines.join('\n')));
+
+    if (headshotUrl) {
+      section.setThumbnailAccessory(new ThumbnailBuilder().setURL(headshotUrl));
+    }
 
     const container = new ContainerBuilder()
-      .setAccentColor(COLORS.purple)
+      .setAccentColor(0xDD58FB)
       .addSectionComponents(section)
       .addSeparatorComponents(S())
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `**roblox id** \`${target.roblox_id}\``
-        )
+        new TextDisplayBuilder().setContent(`**roblox id** \`${target.roblox_id}\``)
       )
       .addSeparatorComponents(S(false))
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`-# <t:${Math.floor(Date.now() / 1000)}:T>`)
       );
 
-    // ── Buttons ─────────────────────────────────────────────────────────────
-
     const buttons = [];
 
-    // "Join Server" button → Discord invite link for the configured server
-    if (target.server_link) {
+    // "Join" button — links to the exact game server the user is in
+    if (presence.userPresenceType === 2 && presence.rootPlaceId && presence.gameId) {
       buttons.push(
         new ButtonBuilder()
-          .setLabel('Join Server')
+          .setLabel('Join')
           .setStyle(ButtonStyle.Link)
-          .setURL(target.server_link)
+          .setURL(`https://www.roblox.com/games/start?placeId=${presence.rootPlaceId}&gameInstanceId=${presence.gameId}`)
       );
     }
 
-    // Roblox profile link
     buttons.push(
       new ButtonBuilder()
         .setLabel('Roblox Profile')
@@ -131,7 +123,7 @@ async function notifySniper(client, target, presence) {
 
     await channel.send({
       content,
-      flags: require('discord.js').MessageFlags.IsComponentsV2,
+      flags: MessageFlags.IsComponentsV2,
       components,
     });
   } catch (e) {
@@ -141,10 +133,10 @@ async function notifySniper(client, target, presence) {
 
 function presenceText(p, gameInfo) {
   switch (p.userPresenceType) {
-    case 1: return '🌐 On Website';
-    case 2: return `🎮 In Game${gameInfo ? ` — ${gameInfo.name}` : (p.lastLocation ? ` — ${p.lastLocation}` : '')}`;
-    case 3: return `🔧 In Studio${p.lastLocation ? ` — ${p.lastLocation}` : ''}`;
-    default: return '🔴 Offline';
+    case 1: return 'On Website';
+    case 2: return `In Game${gameInfo ? ` — ${gameInfo.name}` : (p.lastLocation ? ` — ${p.lastLocation}` : '')}`;
+    case 3: return `In Studio${p.lastLocation ? ` — ${p.lastLocation}` : ''}`;
+    default: return 'Offline';
   }
 }
 
