@@ -2,10 +2,11 @@
 
 const {
   ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize,
+  SectionBuilder, ThumbnailBuilder,
   ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags,
 } = require('discord.js');
 const { card, err, COLORS } = require('../../utils/components');
-const { getUserByUsername, getUserGroups } = require('../../utils/roblox');
+const { getUserByUsername, getUserGroups, getGroupIcon } = require('../../utils/roblox');
 const { getVerifiedUser }  = require('../../utils/database');
 
 const category   = 'roblox';
@@ -16,25 +17,41 @@ const S = (d = true) => new SeparatorBuilder().setSpacing(SeparatorSpacingSize.S
 const CV2 = MessageFlags.IsComponentsV2;
 const PAGE_SIZE = 3;
 
-function buildPage(displayName, groups, page) {
+async function buildPage(displayName, groups, page) {
   const total = Math.ceil(groups.length / PAGE_SIZE) || 1;
   const slice = groups.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+  // Fetch all group icons for this page in parallel
+  const icons = await Promise.all(
+    slice.map(({ group }) => getGroupIcon(group.id, '150x150').catch(() => null))
+  );
 
   const c = new ContainerBuilder().setAccentColor(0xDD58FB)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ${displayName}'s joined groups`))
     .addSeparatorComponents(S());
 
-  for (const entry of slice) {
-    const g    = entry.group;
-    const role = entry.role;
+  for (let i = 0; i < slice.length; i++) {
+    const { group: g, role } = slice[i];
+    const icon = icons[i];
+
     const lines = [
-      `**/${g.name}**`,
+      `**${g.name}**`,
       `Members · ${g.memberCount?.toLocaleString() ?? '?'}`,
       `Public · ${g.publicEntryAllowed ? 'Yes' : 'No'}`,
       `Rank · ${role?.name ?? 'Guest'}`,
-      `Group ID · ${g.id}`,
+      `Group ID · \`${g.id}\``,
     ].join('\n');
-    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines));
+
+    if (icon) {
+      c.addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines))
+          .setThumbnailAccessory(new ThumbnailBuilder().setURL(icon))
+      );
+    } else {
+      c.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines));
+    }
+
     c.addSeparatorComponents(S(false));
   }
 
@@ -99,7 +116,7 @@ async function prefixExecute(message, args) {
   }
 
   let page = 0;
-  const reply = await message.reply(buildPage(displayName, groups, page));
+  const reply = await message.reply(await buildPage(displayName, groups, page));
 
   const total = Math.ceil(groups.length / PAGE_SIZE);
   if (total <= 1) return;
@@ -112,7 +129,7 @@ async function prefixExecute(message, args) {
     if (i.customId.startsWith('gc_prev_')) page--;
     if (i.customId.startsWith('gc_next_')) page++;
     page = Math.max(0, Math.min(page, total - 1));
-    await i.update(buildPage(displayName, groups, page));
+    await i.update(await buildPage(displayName, groups, page));
   });
   collector.on('end', () => reply.edit({ components: [reply.components[0]] }).catch(() => {}));
 }
@@ -141,7 +158,7 @@ async function execute(interaction) {
   }
   const groups = await getUserGroups(robloxId).catch(() => []);
   if (!groups.length) return interaction.editReply(card({ title: `${displayName}'s joined groups`, desc: 'No groups.', color: 0xDD58FB }));
-  await interaction.editReply(buildPage(displayName, groups, 0));
+  await interaction.editReply(await buildPage(displayName, groups, 0));
 }
 
 module.exports = { data, execute, prefixName, aliases, category, prefixExecute };
