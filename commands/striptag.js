@@ -4,6 +4,8 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { ok, err, card, COLORS }   = require('../utils/components');
 const { getVerifyConfig, getAllLinkedUsers } = require('../utils/database');
 const { getUserByUsername, getUserById, getGroupRoles, getUserRankInGroup, rankUser } = require('../utils/roblox');
+const { isWhitelisted } = require('../utils/whitelist');
+const { OWNER_IDS } = require('../utils/constants');
 
 const category   = 'roblox';
 const prefixName = 'striptag';
@@ -41,6 +43,10 @@ async function stripOne(robloxId, baseRoles, cookie) {
 }
 
 function isTagManager(member, authorId, guildId) {
+  if (OWNER_IDS.includes(authorId)) return true;
+  if (isWhitelisted(member, 'all')) return true;
+  if (isWhitelisted(member, 'tags')) return true;
+  if (isWhitelisted(member, 'roblox')) return true;
   const wl = require('../utils/database').getTagManagers(guildId);
   if (wl.users.includes(authorId)) return true;
   for (const roleId of member.roles.cache.keys()) {

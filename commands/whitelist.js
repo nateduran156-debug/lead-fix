@@ -6,7 +6,7 @@ const {
   getWhitelistUsers, getWhitelistRoles,
 } = require('../utils/database');
 const { ok, err, card, COLORS, CV2, C } = require('../utils/components');
-const { CATEGORIES, OWNER_ID }           = require('../utils/constants');
+const { CATEGORIES, OWNER_IDS }          = require('../utils/constants');
 const {
   ContainerBuilder,
   TextDisplayBuilder,
@@ -36,8 +36,13 @@ function parseCategories(input) {
 }
 
 async function prefixExecute(message, args) {
-  if (message.author.id !== OWNER_ID && message.author.id !== message.guild.ownerId) {
-    return message.reply(err('Only the bot owner or server owner may manage the whitelist.'));
+  const canManageWl = OWNER_IDS.includes(message.author.id)
+    || message.author.id === message.guild.ownerId
+    || (message.member && (
+         require('../utils/whitelist').isWhitelisted(message.member, 'all')
+       ));
+  if (!canManageWl) {
+    return message.reply(err('Only the bot owner, server owner, or a fully whitelisted user may manage the whitelist.'));
   }
 
   const guildId = message.guild.id;

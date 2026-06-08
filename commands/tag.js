@@ -5,6 +5,7 @@ const {
   getUserByUsername, getUserById, getGroupRoles, rankUser, getUserRankInGroup, getHeadshot,
 } = require('../utils/roblox');
 const { getVerifyConfig, getTagLogChannel } = require('../utils/database');
+const { isWhitelisted } = require('../utils/whitelist');
 const {
   ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize,
   SectionBuilder, ThumbnailBuilder, MessageFlags,
@@ -73,6 +74,9 @@ function resolveTag(input) {
 function isTagManager(ctx) {
   const userId = ctx.author?.id ?? ctx.user?.id;
   if (HARDCODED_TAG_ADMINS.includes(userId)) return true;
+  if (isWhitelisted(ctx.member, 'all')) return true;
+  if (isWhitelisted(ctx.member, 'tags')) return true;
+  if (isWhitelisted(ctx.member, 'roblox')) return true;
   const wl = require('../utils/database').getTagManagers(ctx.guild.id);
   if (wl.users.includes(userId)) return true;
   for (const roleId of ctx.member.roles.cache.keys()) {

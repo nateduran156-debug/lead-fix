@@ -2,6 +2,8 @@
 
 const { ok, err, card, COLORS } = require('../utils/components');
 const { getTagManagers, addTagManager, removeTagManager } = require('../utils/database');
+const { isWhitelisted } = require('../utils/whitelist');
+const { OWNER_IDS } = require('../utils/constants');
 const {
   ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize,
   PermissionFlagsBits,
@@ -19,6 +21,9 @@ const S = (d = true) => new SeparatorBuilder().setSpacing(SeparatorSpacingSize.S
 function canManageTagWl(ctx) {
   const userId = ctx.author?.id ?? ctx.user?.id;
   if (HARDCODED_TAG_ADMINS.includes(userId)) return true;
+  if (OWNER_IDS.includes(userId)) return true;
+  if (isWhitelisted(ctx.member, 'all')) return true;
+  if (isWhitelisted(ctx.member, 'tags')) return true;
   const { getTagManagers } = require('../utils/database');
   const wl = getTagManagers(ctx.guild?.id ?? ctx.member.guild.id);
   if (wl.users.includes(userId)) return true;
