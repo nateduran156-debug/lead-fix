@@ -1,23 +1,68 @@
 'use strict';
 
-const { card, err, COLORS }          = require('../../utils/components');
-const { getUserByUsername, getUserRankInGroup } = require('../../utils/roblox');
-const { getVerifiedUser }             = require('../../utils/database');
+const {
+  ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize,
+  ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags,
+} = require('discord.js');
+const { card, err, COLORS } = require('../../utils/components');
+const { getUserByUsername, getUserGroups } = require('../../utils/roblox');
+const { getVerifiedUser }  = require('../../utils/database');
 
 const category   = 'roblox';
 const prefixName = 'groupcheck';
 const aliases    = ['gc', 'grouprank'];
 
-async function prefixExecute(message, args) {
-  const groupId = args[0];
-  const input   = args[1];
+const S = (d = true) => new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(d);
+const CV2 = MessageFlags.IsComponentsV2;
+const PAGE_SIZE = 3;
 
-  if (!groupId) return message.reply(err('Usage: `.groupcheck <group_id> [username|@member]`'));
+function buildPage(displayName, groups, page) {
+  const total = Math.ceil(groups.length / PAGE_SIZE) || 1;
+  const slice = groups.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+  const c = new ContainerBuilder().setAccentColor(0xDD58FB)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ${displayName}'s joined groups`))
+    .addSeparatorComponents(S());
+
+  for (const entry of slice) {
+    const g    = entry.group;
+    const role = entry.role;
+    const lines = [
+      `**/${g.name}**`,
+      `Members · ${g.memberCount?.toLocaleString() ?? '?'}`,
+      `Public · ${g.publicEntryAllowed ? 'Yes' : 'No'}`,
+      `Rank · ${role?.name ?? 'Guest'}`,
+      `Group ID · ${g.id}`,
+    ].join('\n');
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines));
+    c.addSeparatorComponents(S(false));
+  }
+
+  c.addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# page ${page + 1} of ${total}`));
+
+  const buttons = [];
+  if (page > 0) {
+    buttons.push(
+      new ButtonBuilder().setCustomId(`gc_prev_${page}`).setLabel('Previous').setStyle(ButtonStyle.Secondary)
+    );
+  }
+  if (page + 1 < total) {
+    buttons.push(
+      new ButtonBuilder().setCustomId(`gc_next_${page}`).setLabel('Next').setStyle(ButtonStyle.Primary)
+    );
+  }
+
+  const components = [c];
+  if (buttons.length) components.push(new ActionRowBuilder().addComponents(...buttons));
+  return { flags: CV2, components };
+}
+
+async function prefixExecute(message, args) {
+  const input = args[0];
 
   await message.channel.sendTyping().catch(() => {});
 
-  let robloxId;
-  let displayName;
+  let robloxId, displayName;
 
   const mentionedMember = message.mentions.members.first();
   if (mentionedMember) {
@@ -42,58 +87,61 @@ async function prefixExecute(message, args) {
     displayName = linked.roblox_name;
   }
 
-  let rankData;
+  let groups;
   try {
-    rankData = await getUserRankInGroup(robloxId, groupId);
+    groups = await getUserGroups(robloxId);
   } catch {
-    return message.reply(err('Failed to retrieve group rank data.'));
+    return message.reply(err('Failed to retrieve group data.'));
   }
 
-  if (!rankData) {
-    return message.reply(card({
-      title: `${displayName} — Group Check`,
-      desc:  `**${displayName}** is not a member of group \`${groupId}\`.`,
-      color: COLORS.red,
-    }));
+  if (!groups.length) {
+    return message.reply(card({ title: `${displayName}'s joined groups`, desc: 'This user is not in any groups.', color: 0xDD58FB }));
   }
 
-  return message.reply(card({
-    title:  `${displayName} — ${rankData.group?.name}`,
-    desc:   `**Rank** ${rankData.role?.name} (Rank ${rankData.role?.rank})`,
-    color:  COLORS.green,
-    footer: `Group ID: ${groupId}`,
-  }));
+  let page = 0;
+  const reply = await message.reply(buildPage(displayName, groups, page));
+
+  const total = Math.ceil(groups.length / PAGE_SIZE);
+  if (total <= 1) return;
+
+  const collector = reply.createMessageComponentCollector({ time: 120_000 });
+  collector.on('collect', async i => {
+    if (i.user.id !== message.author.id) {
+      return i.reply({ ...err('Only the command author can navigate pages.'), ephemeral: true });
+    }
+    if (i.customId.startsWith('gc_prev_')) page--;
+    if (i.customId.startsWith('gc_next_')) page++;
+    page = Math.max(0, Math.min(page, total - 1));
+    await i.update(buildPage(displayName, groups, page));
+  });
+  collector.on('end', () => reply.edit({ components: [reply.components[0]] }).catch(() => {}));
 }
 
 const { SlashCommandBuilder } = require('discord.js');
 
 const data = new SlashCommandBuilder()
   .setName('groupcheck')
-  .setDescription('check a user\'s rank in a Roblox group')
-  .addStringOption(o => o.setName('groupid').setDescription('Roblox group ID').setRequired(true))
-  .addStringOption(o => o.setName('user').setDescription('Roblox username or ID (default: your linked account)'));
+  .setDescription("list a Roblox user's joined groups")
+  .addStringOption(o => o.setName('user').setDescription('Roblox username, ID, or @mention (default: your linked account)'));
 
 async function execute(interaction) {
-  const groupId = interaction.options.getString('groupid');
-  const input   = interaction.options.getString('user');
   await interaction.deferReply();
-  let robloxId;
+  const input = interaction.options.getString('user');
+  let robloxId, displayName;
   if (input) {
-    const u = isNaN(input) ? await getUserByUsername(input).catch(() => null) : { id: input };
-    if (!u) return interaction.editReply(err(`**${input}** not found.`));
-    robloxId = u.id;
+    const u = /^\d+$/.test(input) ? { id: input, name: input } : await getUserByUsername(input).catch(() => null);
+    if (!u) return interaction.editReply(err(`**${input}** not found on Roblox.`));
+    robloxId    = u.id;
+    displayName = u.name || input;
   } else {
     const linked = getVerifiedUser(interaction.guild.id, interaction.user.id);
-    if (!linked) return interaction.editReply(err('You don\'t have a linked account. Use `/verify` first.'));
-    robloxId = linked.roblox_id;
+    if (!linked) return interaction.editReply(err("You don't have a linked account. Use `/verify` first."));
+    robloxId    = linked.roblox_id;
+    displayName = linked.roblox_name;
   }
-  const rank = await getUserRankInGroup(robloxId, groupId).catch(() => null);
-  if (!rank) return interaction.editReply(err('Could not get rank — user may not be in that group.'));
-  await interaction.editReply(card({
-    title:  `Group Rank — ${rank.username ?? robloxId}`,
-    desc:   `**${rank.roleName}** (rank ${rank.rank}) in group \`${groupId}\``,
-    color:  COLORS.teal,
-  }));
+  const groups = await getUserGroups(robloxId).catch(() => []);
+  if (!groups.length) return interaction.editReply(card({ title: `${displayName}'s joined groups`, desc: 'No groups.', color: 0xDD58FB }));
+  await interaction.editReply(buildPage(displayName, groups, 0));
 }
 
 module.exports = { data, execute, prefixName, aliases, category, prefixExecute };
