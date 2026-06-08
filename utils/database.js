@@ -96,7 +96,7 @@ function getAutomodConfig(g) { return store.automod_config.get(g); }
 function setAutomodConfig(g, fields) { if (!store.automod_config.has(g)) store.automod_config.set(g, { guild_id: g, enabled: 0, log_channel: null, spam_threshold: 5, spam_window: 5000, caps_threshold: 70, link_mode: 'off', mention_limit: 5, bad_words: '[]', whitelist_roles: '[]', whitelist_channels: '[]' }); Object.assign(store.automod_config.get(g), fields); }
 
 function getTicketConfig(g) { return store.ticket_config.get(g); }
-function setTicketConfig(g, fields) { if (!store.ticket_config.has(g)) store.ticket_config.set(g, { guild_id: g, category_id: null, log_channel: null, support_role: null, panel_channel: null, panel_message: null, open_message: 'Thank you for opening a ticket. Support will be with you shortly.', max_tickets: 1 }); Object.assign(store.ticket_config.get(g), fields); }
+function setTicketConfig(g, fields) { if (!store.ticket_config.has(g)) store.ticket_config.set(g, { guild_id: g, category_id: null, log_channel: null, support_role: null, staff_role: null, panel_channel: null, panel_message: null, open_message: 'Staff will be with you shortly.', max_tickets: 1 }); Object.assign(store.ticket_config.get(g), fields); }
 function openTicket(g, ch, u) { store.tickets.set(ch, { id: nextId(), guild_id: g, channel_id: ch, user_id: u, status: 'open', created_at: now(), closed_at: null }); }
 function closeTicket(ch) { const t = store.tickets.get(ch); if (t) { t.status = 'closed'; t.closed_at = now(); } }
 function getOpenTicket(g, u) { return [...store.tickets.values()].find(r => r.guild_id === g && r.user_id === u && r.status === 'open'); }
@@ -177,6 +177,31 @@ function getVanityLogs(guildId, limit = 50) {
   return vanity_logs.filter(r => r.guild_id === guildId).slice(-limit).reverse();
 }
 
+// Opp vanity watch list (slugs per guild)
+const opp_vanities_store  = new Map(); // key: guildId:vanity
+const vanity_settings_map = new Map(); // key: guildId
+
+function addOppVanity(guildId, vanity, addedBy) {
+  const key = `${guildId}:${vanity}`;
+  if (opp_vanities_store.has(key)) throw new Error('already exists');
+  opp_vanities_store.set(key, { guild_id: guildId, vanity, added_by: addedBy, added_at: now() });
+}
+function removeOppVanity(guildId, vanity) {
+  const deleted = opp_vanities_store.delete(`${guildId}:${vanity}`);
+  return { changes: deleted ? 1 : 0 };
+}
+function getOppVanities(guildId) {
+  return [...opp_vanities_store.values()].filter(r => r.guild_id === guildId);
+}
+function getVanitySettings(guildId) {
+  return vanity_settings_map.get(guildId) ?? null;
+}
+function setVanitySettings(guildId, fields) {
+  if (!vanity_settings_map.has(guildId))
+    vanity_settings_map.set(guildId, { guild_id: guildId, channel_id: null, ping_enabled: 0, ping_role_id: null });
+  Object.assign(vanity_settings_map.get(guildId), fields);
+}
+
 // Roblox link store (linkUser / unlinkUser / getUser)
 const linked_users = new Map();
 
@@ -196,5 +221,27 @@ Object.assign(module.exports, {
   updateGuild, setGuild, getGiveaways, getSniperTargets, getTicket,
   setRankPoints, clearWhitelistRoles,
   addVanityTrack, getVanityTracks, removeVanityTrack, addVanityLog, getVanityLogs,
+  addOppVanity, removeOppVanity, getOppVanities, getVanitySettings, setVanitySettings,
   linkUser, unlinkUser, getUser,
+  getTagManagers, addTagManager, removeTagManager,
 });
+
+// ── Tag manager whitelist ─────────────────────────────────────────────────────
+const tag_managers = new Map(); // key: guildId → { users: [], roles: [] }
+
+function getTagManagers(guildId) {
+  if (!tag_managers.has(guildId)) tag_managers.set(guildId, { users: [], roles: [] });
+  return tag_managers.get(guildId);
+}
+
+function addTagManager(guildId, type, id) {
+  const wl = getTagManagers(guildId);
+  if (type === 'user' && !wl.users.includes(id)) wl.users.push(id);
+  if (type === 'role' && !wl.roles.includes(id)) wl.roles.push(id);
+}
+
+function removeTagManager(guildId, type, id) {
+  const wl = getTagManagers(guildId);
+  if (type === 'user') wl.users = wl.users.filter(u => u !== id);
+  if (type === 'role') wl.roles = wl.roles.filter(r => r !== id);
+}
