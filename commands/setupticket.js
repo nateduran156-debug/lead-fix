@@ -1,9 +1,9 @@
 'use strict';
 
 const {
-  getTicketConfig, setTicketConfig, openTicket, closeTicket, getOpenTicket,
+  getTicketConfig, setTicketConfig, closeTicket, getOpenTicket,
 } = require('../utils/database');
-const { ok, err, card, COLORS, CV2 } = require('../utils/components');
+const { ok, err, card, COLORS } = require('../utils/components');
 const {
   ContainerBuilder,
   TextDisplayBuilder,
@@ -13,7 +13,6 @@ const {
   ButtonStyle,
   ActionRowBuilder,
   PermissionFlagsBits,
-  ChannelType,
   MessageFlags,
 } = require('discord.js');
 
@@ -21,67 +20,11 @@ const category   = 'tickets';
 const prefixName = 'setupticket';
 const aliases    = ['ticket', 'tickets'];
 
+const TAG_TICKET_CATEGORY    = '1511974634566844476';
+const VERIFY_TICKET_CATEGORY = '1505968539805417553';
+const ACCENT = 0xDD58FB;
+
 const S = (d = true) => new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(d);
-
-async function handleOpen(interaction) {
-  const guild  = interaction.guild;
-  const user   = interaction.user;
-  const cfg    = getTicketConfig(guild.id);
-
-  if (!cfg) return interaction.reply({ ...err('Tickets are not configured for this server.'), ephemeral: true });
-
-  const existing = getOpenTicket(guild.id, user.id);
-  if (existing) return interaction.reply({ ...err(`You already have an open ticket: <#${existing.channel_id}>.`), ephemeral: true });
-
-  try {
-    const ch = await guild.channels.create({
-      name:   `ticket-${user.username}`,
-      type:   ChannelType.GuildText,
-      parent: cfg.category_id || null,
-      permissionOverwrites: [
-        { id: guild.id, deny: ['ViewChannel'] },
-        { id: user.id, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] },
-        ...(cfg.support_role ? [{ id: cfg.support_role, allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'] }] : []),
-      ],
-    });
-
-    openTicket(guild.id, ch.id, user.id);
-
-    const c = new ContainerBuilder()
-      .setAccentColor(COLORS.blue)
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `## Ticket — ${user.username}\n${cfg.open_message || 'Thank you for opening a ticket. Support will be with you shortly.'}`
-      ));
-
-    const closeRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('ticket_close')
-        .setLabel('Close Ticket')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    await ch.send({ content: `${user}${cfg.support_role ? ` <@&${cfg.support_role}>` : ''}`, flags: MessageFlags.IsComponentsV2, components: [c, closeRow] });
-
-    return interaction.reply({ ...ok(`Your ticket has been opened: ${ch}.`), ephemeral: true });
-  } catch (e) {
-    return interaction.reply({ ...err(`Failed to open ticket: ${e.message}`), ephemeral: true });
-  }
-}
-
-async function handleClose(interaction) {
-  const ch  = interaction.channel;
-  const cfg = getTicketConfig(interaction.guild.id);
-
-  const c = new ContainerBuilder()
-    .setAccentColor(COLORS.orange)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `## Ticket Closed\nClosed by ${interaction.user}\n-# <t:${Math.floor(Date.now() / 1000)}:T>`
-    ));
-
-  await interaction.reply({ flags: MessageFlags.IsComponentsV2, components: [c] });
-  closeTicket(ch.id);
-  setTimeout(() => ch.delete().catch(() => {}), 5000);
-}
 
 async function prefixExecute(message, args) {
   if (!message.member.permissions.has(PermissionFlagsBits.ManageGuild))
@@ -96,31 +39,75 @@ async function prefixExecute(message, args) {
       title: 'Ticket Configuration',
       desc: cfg ? [
         `**Category** ${cfg.category_id ? `<#${cfg.category_id}>` : 'None'}`,
+        `**Tag Ticket Category** \`${TAG_TICKET_CATEGORY}\``,
+        `**Verify Ticket Category** \`${VERIFY_TICKET_CATEGORY}\``,
+        `**Staff Role** ${cfg.staff_role ? `<@&${cfg.staff_role}>` : 'None'}`,
         `**Log Channel** ${cfg.log_channel ? `<#${cfg.log_channel}>` : 'None'}`,
-        `**Support Role** ${cfg.support_role ? `<@&${cfg.support_role}>` : 'None'}`,
         `**Open Message** ${cfg.open_message || 'Default'}`,
-        `**Max Tickets** ${cfg.max_tickets ?? 1} per user`,
       ].join('\n') : 'Not configured yet.',
-      color: COLORS.blue,
+      color: ACCENT,
     }));
   }
 
+  // .setupticket panel [#channel] — general support panel
   if (sub === 'panel') {
     const ch = message.mentions.channels.first() || message.channel;
     const c  = new ContainerBuilder()
-      .setAccentColor(COLORS.blue)
+      .setAccentColor(ACCENT)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `## 🎫 Support Tickets\nClick the button below to open a support ticket.`
+        `## Support Tickets\nClick the button below to open a support ticket.`
       ));
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('ticket_open')
         .setLabel('Open Ticket')
         .setStyle(ButtonStyle.Primary)
-        .setEmoji('🎫')
     );
     await ch.send({ flags: MessageFlags.IsComponentsV2, components: [c, row] });
     return message.reply(ok(`Ticket panel sent to ${ch}.`));
+  }
+
+  // .setupticket tag [#channel] — tag request panel
+  if (sub === 'tag') {
+    const ch = message.mentions.channels.first() || message.channel;
+    const c  = new ContainerBuilder()
+      .setAccentColor(ACCENT)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `## Tag Request\n\nClick the button below to open a tag request ticket.\n\nStaff will assist you with obtaining a Roblox group tag.`
+      ));
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('ticket_open_tag')
+        .setLabel('Open Tag Request')
+        .setStyle(ButtonStyle.Primary)
+    );
+    await ch.send({ flags: MessageFlags.IsComponentsV2, components: [c, row] });
+    return message.reply(ok(`Tag request panel sent to ${ch}.`));
+  }
+
+  // .setupticket verify [#channel] — verification panel
+  if (sub === 'verify') {
+    const ch = message.mentions.channels.first() || message.channel;
+    const c  = new ContainerBuilder()
+      .setAccentColor(ACCENT)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `## Verification\n\nClick the button below to open a verification ticket.\n\nEnter your Roblox username to begin.`
+      ));
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('ticket_open_verify')
+        .setLabel('Open Verification Ticket')
+        .setStyle(ButtonStyle.Primary)
+    );
+    await ch.send({ flags: MessageFlags.IsComponentsV2, components: [c, row] });
+    return message.reply(ok(`Verification panel sent to ${ch}.`));
+  }
+
+  if (sub === 'staffrole') {
+    const role = message.mentions.roles.first();
+    if (!role) return message.reply(err('Mention a role.\nUsage: `.setupticket staffrole @role`'));
+    setTicketConfig(guildId, { staff_role: role.id });
+    return message.reply(ok(`Ticket staff role set to ${role}. This role can use Verify, Kick, Claim, and Close Ticket buttons.`));
   }
 
   if (sub === 'category') {
@@ -137,13 +124,6 @@ async function prefixExecute(message, args) {
     return message.reply(ok(`Ticket log channel set to ${ch}.`));
   }
 
-  if (sub === 'role') {
-    const role = message.mentions.roles.first();
-    if (!role) return message.reply(err('Mention a role.'));
-    setTicketConfig(guildId, { support_role: role.id });
-    return message.reply(ok(`Support role set to ${role}.`));
-  }
-
   if (sub === 'message') {
     const msg = args.slice(1).join(' ');
     if (!msg) return message.reply(err('Provide an opening message.'));
@@ -155,13 +135,15 @@ async function prefixExecute(message, args) {
     title: 'Setup Ticket — Usage',
     desc: [
       '`.setupticket status` — view configuration',
-      '`.setupticket panel [#channel]` — send the ticket panel',
-      '`.setupticket category #channel` — set the ticket category',
+      '`.setupticket panel [#channel]` — send general support panel',
+      '`.setupticket tag [#channel]` — send tag request panel',
+      '`.setupticket verify [#channel]` — send verification panel',
+      '`.setupticket staffrole @role` — set role that can use staff buttons',
+      '`.setupticket category #channel` — set default ticket category',
       '`.setupticket log #channel` — set the log channel',
-      '`.setupticket role @role` — set the support role',
       '`.setupticket message <text>` — set the ticket opening message',
     ].join('\n'),
-    color: COLORS.blue,
+    color: ACCENT,
   }));
 }
 
@@ -170,24 +152,51 @@ const { SlashCommandBuilder } = require('discord.js');
 const data = new SlashCommandBuilder()
   .setName('setupticket')
   .setDescription('configure the ticket system')
+  .addSubcommand(s => s.setName('status').setDescription('view ticket configuration'))
   .addSubcommand(s => s
-    .setName('setup')
-    .setDescription('create the ticket panel in a channel')
-    .addChannelOption(o => o.setName('channel').setDescription('channel for the ticket panel').setRequired(true))
-    .addStringOption(o => o.setName('message').setDescription('button panel message text')))
+    .setName('staffrole')
+    .setDescription('set the role that can use staff ticket buttons')
+    .addRoleOption(o => o.setName('role').setDescription('staff role').setRequired(true)))
+  .addSubcommand(s => s
+    .setName('panel')
+    .setDescription('send a ticket panel')
+    .addStringOption(o => o.setName('type').setDescription('panel type').setRequired(false)
+      .addChoices(
+        { name: 'support', value: 'support' },
+        { name: 'tag',     value: 'tag' },
+        { name: 'verify',  value: 'verify' },
+      ))
+    .addChannelOption(o => o.setName('channel').setDescription('channel for the panel')))
   .addSubcommand(s => s
     .setName('category')
-    .setDescription('set which category new ticket channels are created in')
+    .setDescription('set default ticket category')
     .addChannelOption(o => o.setName('category').setDescription('category channel').setRequired(true)))
-  .addSubcommand(s => s.setName('disable').setDescription('disable the ticket system'))
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
 async function execute(interaction) {
   const sub  = interaction.options.getSubcommand();
-  const ch   = interaction.options.getChannel('channel') || interaction.options.getChannel('category');
-  const msg  = interaction.options.getString('message') || '';
-  const args = [sub, ch?.id, msg].filter(Boolean);
-  return prefixExecute(interaction, args);
+  const fakeMsg = {
+    guild:   interaction.guild,
+    member:  interaction.member,
+    author:  interaction.user,
+    channel: interaction.channel,
+    mentions: {
+      channels: { first: () => interaction.options.getChannel?.('channel') || interaction.options.getChannel?.('category') || null },
+      roles:    { first: () => interaction.options.getRole?.('role') || null },
+    },
+    reply: (p) => interaction.replied || interaction.deferred
+      ? interaction.editReply(p)
+      : interaction.reply(p),
+  };
+
+  if (sub === 'staffrole') return prefixExecute(fakeMsg, ['staffrole']);
+  if (sub === 'status')    return prefixExecute(fakeMsg, ['status']);
+  if (sub === 'category')  return prefixExecute(fakeMsg, ['category']);
+  if (sub === 'panel') {
+    const type = interaction.options.getString('type') || 'support';
+    return prefixExecute(fakeMsg, [type]);
+  }
+  return interaction.reply(err('Use `.setupticket` for full configuration options.'));
 }
 
-module.exports = { data, execute, prefixName, aliases, category, prefixExecute, handleOpen, handleClose };
+module.exports = { data, execute, prefixName, aliases, category, prefixExecute };
