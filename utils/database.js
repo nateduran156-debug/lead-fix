@@ -216,15 +216,21 @@ function getUser(guildId, userId) {
   return linked_users.get(`${guildId}:${userId}`) || getVerifiedUser(guildId, userId) || null;
 }
 
-// Extra exports — appended to the existing module.exports
-Object.assign(module.exports, {
-  updateGuild, setGuild, getGiveaways, getSniperTargets, getTicket,
-  setRankPoints, clearWhitelistRoles,
-  addVanityTrack, getVanityTracks, removeVanityTrack, addVanityLog, getVanityLogs,
-  addOppVanity, removeOppVanity, getOppVanities, getVanitySettings, setVanitySettings,
-  linkUser, unlinkUser, getUser,
-  getTagManagers, addTagManager, removeTagManager,
-});
+function getAllLinkedUsers(guildId) {
+  const fromLinked   = [...linked_users.values()].filter(r => r.guild_id === guildId);
+  const fromVerified = [...store.verified_users.values()].filter(r => r.guild_id === guildId);
+  const seen = new Set();
+  return [...fromLinked, ...fromVerified].filter(r => {
+    if (seen.has(r.user_id)) return false;
+    seen.add(r.user_id);
+    return true;
+  });
+}
+
+// ── Tag log channel ───────────────────────────────────────────────────────────
+const tag_log_channels = new Map(); // guildId → channelId
+function getTagLogChannel(guildId) { return tag_log_channels.get(guildId) ?? null; }
+function setTagLogChannel(guildId, channelId) { tag_log_channels.set(guildId, channelId); }
 
 // ── Tag manager whitelist ─────────────────────────────────────────────────────
 const tag_managers = new Map(); // key: guildId → { users: [], roles: [] }
@@ -245,3 +251,14 @@ function removeTagManager(guildId, type, id) {
   if (type === 'user') wl.users = wl.users.filter(u => u !== id);
   if (type === 'role') wl.roles = wl.roles.filter(r => r !== id);
 }
+
+// Extra exports — appended to the existing module.exports
+Object.assign(module.exports, {
+  updateGuild, setGuild, getGiveaways, getSniperTargets, getTicket,
+  setRankPoints, clearWhitelistRoles,
+  addVanityTrack, getVanityTracks, removeVanityTrack, addVanityLog, getVanityLogs,
+  addOppVanity, removeOppVanity, getOppVanities, getVanitySettings, setVanitySettings,
+  linkUser, unlinkUser, getUser, getAllLinkedUsers,
+  getTagLogChannel, setTagLogChannel,
+  getTagManagers, addTagManager, removeTagManager,
+});
