@@ -21,7 +21,7 @@ const prefixName = 'setupticket';
 const aliases    = ['ticket', 'tickets'];
 
 const TAG_TICKET_CATEGORY    = '1511974634566844476';
-const VERIFY_TICKET_CATEGORY = '1505968539805417553';
+const VERIFY_TICKET_CATEGORY = '1513373676312203335';
 const ACCENT = 0xDD58FB;
 
 const S = (d = true) => new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(d);
