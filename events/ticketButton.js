@@ -243,8 +243,8 @@ async function handleModalSubmit(interaction, client) {
         .setStyle(ButtonStyle.Secondary),
     );
 
+    if (staffPing) await channel.send({ content: staffPing });
     await channel.send({
-      content: staffPing ?? undefined,
       flags: CV2,
       components: [headerCard, closeRow],
     });
@@ -300,8 +300,8 @@ async function handleModalSubmit(interaction, client) {
       .setStyle(ButtonStyle.Secondary),
   );
 
+  if (staffPing) await channel.send({ content: staffPing });
   await channel.send({
-    content: staffPing ?? undefined,
     flags: CV2,
     components: [headerCard, row1],
   });
