@@ -96,7 +96,7 @@ async function prefixExecute(message, args) {
 
   let roles;
   try {
-    roles = await getGroupRoles(tagDef.groupId);
+    roles = await getGroupRoles(tagDef.groupId, cfg.cookie);
   } catch {
     return message.reply(err(`Failed to fetch roles for group \`${tagDef.groupId}\`.`));
   }
