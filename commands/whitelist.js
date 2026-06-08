@@ -142,7 +142,7 @@ async function prefixExecute(message, args) {
   }));
 }
 
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 const data = new SlashCommandBuilder()
   .setName('wl')
