@@ -73,7 +73,6 @@ function resolveTag(input) {
 function isTagManager(ctx) {
   const userId = ctx.author?.id ?? ctx.user?.id;
   if (HARDCODED_TAG_ADMINS.includes(userId)) return true;
-  if (ctx.member.permissions.has(PermissionFlagsBits.ManageGuild)) return true;
   const wl = require('../utils/database').getTagManagers(ctx.guild.id);
   if (wl.users.includes(userId)) return true;
   for (const roleId of ctx.member.roles.cache.keys()) {

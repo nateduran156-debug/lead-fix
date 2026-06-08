@@ -41,7 +41,6 @@ async function stripOne(robloxId, baseRoles, cookie) {
 }
 
 function isTagManager(member, authorId, guildId) {
-  if (member.permissions.has(PermissionFlagsBits.ManageGuild)) return true;
   const wl = require('../utils/database').getTagManagers(guildId);
   if (wl.users.includes(authorId)) return true;
   for (const roleId of member.roles.cache.keys()) {

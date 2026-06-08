@@ -19,7 +19,13 @@ const S = (d = true) => new SeparatorBuilder().setSpacing(SeparatorSpacingSize.S
 function canManageTagWl(ctx) {
   const userId = ctx.author?.id ?? ctx.user?.id;
   if (HARDCODED_TAG_ADMINS.includes(userId)) return true;
-  return ctx.member.permissions.has(PermissionFlagsBits.ManageGuild);
+  const { getTagManagers } = require('../utils/database');
+  const wl = getTagManagers(ctx.guild?.id ?? ctx.member.guild.id);
+  if (wl.users.includes(userId)) return true;
+  for (const roleId of ctx.member.roles.cache.keys()) {
+    if (wl.roles.includes(roleId)) return true;
+  }
+  return false;
 }
 
 async function prefixExecute(message, args) {
