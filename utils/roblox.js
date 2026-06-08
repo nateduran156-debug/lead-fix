@@ -205,6 +205,50 @@ async function getCsrfToken(cookie) {
 // getGroups: alias for getUserGroups (used by ranksync)
 const getGroups = getUserGroups;
 
+// getUser: alias for getUserByUsername (used by roblox/ subcommands)
+const getUser = getUserByUsername;
+
+// getGroup: alias for getGroupInfo (used by setgroup.js)
+const getGroup = getGroupInfo;
+
+async function getGroupRoles(groupId, cookie = null) {
+  const data = await get(`https://groups.roblox.com/v1/groups/${groupId}/roles`, cookie);
+  return data.roles ?? [];
+}
+
+async function searchCatalog(query, category = '0') {
+  const data = await get(`https://catalog.roblox.com/v1/search/items?category=${category}&keyword=${encodeURIComponent(query)}&limit=20&salesTypeFilter=1`);
+  return data.data ?? [];
+}
+
+async function rankUser(groupId, userId, roleId, cookie) {
+  if (!cookie) throw new Error('No Roblox cookie configured. Use .verify setcookie <cookie> first.');
+  const csrf = await getCsrfToken(cookie);
+  try {
+    await axios.patch(
+      `https://groups.roblox.com/v1/groups/${groupId}/users/${userId}`,
+      { roleId: parseInt(roleId) },
+      { headers: { Cookie: `.ROBLOSECURITY=${cookie}`, 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json' } }
+    );
+  } catch (e) {
+    throw new Error(e.response?.data?.errors?.[0]?.message || e.message);
+  }
+}
+
+async function setGroupShout(groupId, message, cookie) {
+  if (!cookie) throw new Error('No Roblox cookie configured. Use .verify setcookie <cookie> first.');
+  const csrf = await getCsrfToken(cookie);
+  try {
+    await axios.patch(
+      `https://groups.roblox.com/v1/groups/${groupId}/status`,
+      { message },
+      { headers: { Cookie: `.ROBLOSECURITY=${cookie}`, 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json' } }
+    );
+  } catch (e) {
+    throw new Error(e.response?.data?.errors?.[0]?.message || e.message);
+  }
+}
+
 module.exports = {
   getUserByUsername, getUserById, getUsersByIds, searchUsers,
   getUserPresence,
@@ -217,4 +261,5 @@ module.exports = {
   getUserBadges,
   getUserAvatar, getUserOutfits,
   getAuthenticatedUser, getCsrfToken,
+  getUser, getGroup, getGroupRoles, searchCatalog, rankUser, setGroupShout,
 };
