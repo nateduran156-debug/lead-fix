@@ -1,7 +1,7 @@
 'use strict';
 
 const {
-  getGuild, getTicket, closeTicket, openTicket,
+  getTicket, closeTicket, openTicket,
   getTicketConfig, getTagManagers,
 } = require('../utils/database');
 const { ok, err, COLORS } = require('../utils/components');
@@ -22,6 +22,11 @@ const ACCEPT_ROLE = '1505970868805697659';
 
 const TAG_TICKET_CATEGORY    = '1511974634566844476';
 const VERIFY_TICKET_CATEGORY = '1513373676312203335';
+
+const VERIFY_GROUP_ID   = '948951510';
+const VERIFY_GROUP_LINK = 'https://www.roblox.com/communities/948951510/yes-we-triggerbot#!/about';
+
+const PAGE_SIZE = 3;
 
 const S = (d = true) =>
   new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(d);
@@ -45,6 +50,9 @@ const TAG_MAP = {
   'yinyang':   { groupId: '575770529', roleName: 'YinYang'   },
 };
 
+// Groups cache for ticket pagination — channelId → { robloxUser, groups, headshot }
+const ticketGroupsCache = new Map();
+
 // ── Permission helpers ────────────────────────────────────────────────────────
 
 function isFullyWhitelisted(member, guildId) {
@@ -56,6 +64,84 @@ function isFullyWhitelisted(member, guildId) {
     if (wl.roles.includes(roleId)) return true;
   }
   return false;
+}
+
+// ── Group check page builder ──────────────────────────────────────────────────
+
+async function buildTicketGcPage(robloxUser, groups, page, headshot = null) {
+  const total = Math.ceil(groups.length / PAGE_SIZE) || 1;
+  const slice = groups.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+
+  const icons = await Promise.all(
+    slice.map(({ group: g }) => getGroupIcon(g.id, '150x150').catch(() => null))
+  );
+
+  const c = new ContainerBuilder().setAccentColor(ACCENT);
+
+  // Show headshot on page 0
+  if (page === 0 && headshot) {
+    c.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+          `## ${robloxUser.name}'s joined groups`
+        ))
+        .setThumbnailAccessory(new ThumbnailBuilder().setURL(headshot))
+    );
+  } else {
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+      `## ${robloxUser.name}'s joined groups`
+    ));
+  }
+  c.addSeparatorComponents(S());
+
+  for (let i = 0; i < slice.length; i++) {
+    const { group: g, role } = slice[i];
+    const icon = icons[i];
+    const lines = [
+      `**${g.name}**`,
+      `Members · ${g.memberCount?.toLocaleString() ?? '?'}`,
+      `Public · ${g.publicEntryAllowed ? 'Yes' : 'No'}`,
+      `Rank · ${role?.name ?? 'Guest'}`,
+      `Group ID · \`${g.id}\``,
+    ].join('\n');
+
+    if (icon) {
+      c.addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines))
+          .setThumbnailAccessory(new ThumbnailBuilder().setURL(icon))
+      );
+    } else {
+      c.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines));
+    }
+    c.addSeparatorComponents(S(false));
+  }
+
+  c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+    `-# page ${page + 1} of ${total}`
+  ));
+
+  const buttons = [];
+  if (page > 0) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`ticket_gc_prev_${page}`)
+        .setLabel('◀')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  }
+  if (page + 1 < total) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`ticket_gc_next_${page}`)
+        .setLabel('▶')
+        .setStyle(ButtonStyle.Primary)
+    );
+  }
+
+  const components = [c];
+  if (buttons.length) components.push(new ActionRowBuilder().addComponents(...buttons));
+  return { flags: CV2, components };
 }
 
 // ── Step 1: Show modal when user clicks open button ───────────────────────────
@@ -88,7 +174,6 @@ async function handleModalSubmit(interaction, client) {
 
   const guild = interaction.guild;
   const user  = interaction.user;
-  const g     = getGuild(guild.id);
   const cfg   = getTicketConfig(guild.id);
 
   const namePrefix = ticketType === 'tag' ? 'tag' : ticketType === 'verify' ? 'verify' : 'ticket';
@@ -161,7 +246,6 @@ async function handleModalSubmit(interaction, client) {
       components: [headerCard, closeRow],
     });
 
-    // Tag select dropdown
     const selectMenu = new StringSelectMenuBuilder()
       .setCustomId('ticket_tag_select')
       .setPlaceholder('Choose a tag to request...')
@@ -178,6 +262,14 @@ async function handleModalSubmit(interaction, client) {
   }
 
   // ── VERIFY / SUPPORT TICKET ────────────────────────────────────────────────
+
+  // Send group link immediately for verify tickets
+  if (ticketType === 'verify') {
+    await channel.send(
+      `📋 **Please make sure you are in our group before your ticket is processed:**\n${VERIFY_GROUP_LINK}`
+    );
+  }
+
   const headerCard = new ContainerBuilder()
     .setAccentColor(ACCENT)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -211,98 +303,79 @@ async function handleModalSubmit(interaction, client) {
     components: [headerCard, row1],
   });
 
-  // ── Auto group check (gc-style with icons) ─────────────────────────────────
+  // ── Auto group check (gc-style, paginated) ─────────────────────────────────
   try {
-    const PAGE_SIZE = 3;
     const [groups, headshot] = await Promise.all([
       getUserGroups(robloxUser.id).catch(() => []),
       getHeadshot(robloxUser.id).catch(() => null),
     ]);
 
-    const gcCard = new ContainerBuilder().setAccentColor(ACCENT);
-
-    if (headshot) {
-      gcCard.addSectionComponents(
-        new SectionBuilder()
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-            `## ${robloxUser.name}'s joined groups`
-          ))
-          .setThumbnailAccessory(new ThumbnailBuilder().setURL(headshot))
-      );
-    } else {
-      gcCard.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `## ${robloxUser.name}'s joined groups`
-      ));
-    }
-    gcCard.addSeparatorComponents(S());
+    // Cache for ◀▶ pagination
+    ticketGroupsCache.set(channel.id, { robloxUser, groups, headshot });
 
     if (groups.length) {
-      const slice = groups.slice(0, PAGE_SIZE);
-      const icons = await Promise.all(
-        slice.map(({ group: grp }) => getGroupIcon(grp.id, '150x150').catch(() => null))
-      );
-
-      for (let i = 0; i < slice.length; i++) {
-        const { group: grp, role } = slice[i];
-        const icon = icons[i];
-        const lines = [
-          `**${grp.name}**`,
-          `Members · ${grp.memberCount?.toLocaleString() ?? '?'}`,
-          `Public · ${grp.publicEntryAllowed ? 'Yes' : 'No'}`,
-          `Rank · ${role?.name ?? 'Guest'}`,
-          `Group ID · \`${grp.id}\``,
-        ].join('\n');
-
-        if (icon) {
-          gcCard.addSectionComponents(
-            new SectionBuilder()
-              .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines))
-              .setThumbnailAccessory(new ThumbnailBuilder().setURL(icon))
-          );
-        } else {
-          gcCard.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines));
-        }
-        gcCard.addSeparatorComponents(S(false));
-      }
-
-      gcCard.addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `-# showing ${slice.length} of ${groups.length} groups`
-      ));
+      await channel.send(await buildTicketGcPage(robloxUser, groups, 0, headshot));
     } else {
-      gcCard.addTextDisplayComponents(new TextDisplayBuilder().setContent('No groups found.'));
-    }
-
-    await channel.send({ flags: CV2, components: [gcCard] });
-
-    // In-group status
-    const serverGroupId = g?.roblox_group_id;
-    if (serverGroupId) {
-      const rankData = await getUserRankInGroup(robloxUser.id, serverGroupId).catch(() => null);
-      const inGroup  = !!rankData;
-
-      const statusCard = new ContainerBuilder()
-        .setAccentColor(inGroup ? COLORS.green : COLORS.red)
+      const empty = new ContainerBuilder().setAccentColor(ACCENT)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-          inGroup
-            ? [
-                `## In group, ready to be verified`,
-                `**${robloxUser.name}** is in the group.`,
-                `**Rank:** ${rankData.role?.name ?? 'Member'}`,
-                `**Group ID:** \`${serverGroupId}\``,
-              ].join('\n')
-            : [
-                `## Needs to be in group`,
-                `**${robloxUser.name}** is not in the server's Roblox group (\`${serverGroupId}\`).`,
-              ].join('\n')
+          `## ${robloxUser.name}'s joined groups\nNo groups found.`
         ));
-
-      await channel.send({ flags: CV2, components: [statusCard] });
+      await channel.send({ flags: CV2, components: [empty] });
     }
+
+    // In-group status — always checks group 948951510
+    const rankData = await getUserRankInGroup(robloxUser.id, VERIFY_GROUP_ID).catch(() => null);
+    const inGroup  = !!rankData;
+
+    const statusCard = new ContainerBuilder()
+      .setAccentColor(inGroup ? COLORS.green : COLORS.red)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        inGroup
+          ? [
+              `## In group`,
+              `**${robloxUser.name}** is in the group.`,
+              `**Rank:** ${rankData.role?.name ?? 'Member'}`,
+            ].join('\n')
+          : [
+              `## Not in group`,
+              `**${robloxUser.name}** is not in the group yet.`,
+              `They must join before being verified: ${VERIFY_GROUP_LINK}`,
+            ].join('\n')
+      ));
+
+    await channel.send({ flags: CV2, components: [statusCard] });
   } catch (e) {
     await channel.send({ ...err(`Group check failed: ${e.message}`) }).catch(() => {});
   }
 
   await interaction.editReply({ ...ok(`Your ticket has been opened: ${channel}`), ephemeral: true });
+}
+
+// ── Group check pagination handler ────────────────────────────────────────────
+
+async function handleGcNav(interaction, client) {
+  const id      = interaction.customId;
+  const channelId = interaction.channel.id;
+
+  const cached = ticketGroupsCache.get(channelId);
+  if (!cached) {
+    return interaction.reply({ ...err('Group data expired. Please close and re-open the ticket.'), ephemeral: true });
+  }
+
+  const { robloxUser, groups, headshot } = cached;
+  const total = Math.ceil(groups.length / PAGE_SIZE) || 1;
+
+  let page = parseInt(
+    id.startsWith('ticket_gc_prev_')
+      ? id.replace('ticket_gc_prev_', '')
+      : id.replace('ticket_gc_next_', ''),
+    10
+  );
+  if (id.startsWith('ticket_gc_prev_')) page--;
+  if (id.startsWith('ticket_gc_next_')) page++;
+  page = Math.max(0, Math.min(page, total - 1));
+
+  await interaction.update(await buildTicketGcPage(robloxUser, groups, page, headshot));
 }
 
 // ── Tag select menu handler ───────────────────────────────────────────────────
@@ -321,13 +394,11 @@ async function handleTagSelect(interaction, client) {
 
   const displayLabel = TAG_CHOICES.find(t => t.value === tagKey)?.label ?? tagKey;
 
-  // Disable the dropdown after selection
   await interaction.update({
     content: `${interaction.user} has requested the **${displayLabel}** tag.`,
     components: [],
   });
 
-  // Approve / Deny card for staff
   const card = new ContainerBuilder()
     .setAccentColor(ACCENT)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -455,6 +526,7 @@ async function handleStaffButton(interaction, client) {
     if (!ticket) return interaction.reply({ ...err('This is not an open ticket.'), ephemeral: true });
 
     closeTicket(interaction.channel.id);
+    ticketGroupsCache.delete(interaction.channel.id);
     const c = new ContainerBuilder().setAccentColor(COLORS.red)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(
         `Ticket closed by ${interaction.user}. Deleting in 5 seconds.`
@@ -464,4 +536,4 @@ async function handleStaffButton(interaction, client) {
   }
 }
 
-module.exports = { showTicketModal, handleModalSubmit, handleStaffButton, handleTagSelect };
+module.exports = { showTicketModal, handleModalSubmit, handleStaffButton, handleTagSelect, handleGcNav };

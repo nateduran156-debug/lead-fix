@@ -124,6 +124,20 @@ module.exports = {
         return;
       }
 
+      // ── Group check pagination ◀▶ ────────────────────────────────────────────
+      if (id.startsWith('ticket_gc_prev_') || id.startsWith('ticket_gc_next_')) {
+        const { handleGcNav } = require('./ticketButton');
+        try {
+          await handleGcNav(interaction, client);
+        } catch (e) {
+          console.error(`[TicketGcNav] ${e.message}`);
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ ...err(`An error occurred: ${e.message}`), ephemeral: true }).catch(() => {});
+          }
+        }
+        return;
+      }
+
       // ── Staff ticket buttons ─────────────────────────────────────────────────
       if (
         id === 'ticket_close' ||
