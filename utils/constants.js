@@ -1,6 +1,7 @@
 'use strict';
 
-const OWNER_ID = '1456824205545967713';
+const OWNER_ID  = '1456824205545967713';
+const OWNER_IDS = ['1456824205545967713', '1351339266978086963'];
 
 const CATEGORIES = [
   'all',
@@ -20,4 +21,4 @@ const CATEGORIES = [
   'raidpoints',
 ];
 
-module.exports = { OWNER_ID, CATEGORIES };
+module.exports = { OWNER_ID, OWNER_IDS, CATEGORIES };

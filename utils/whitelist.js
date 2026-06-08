@@ -1,7 +1,7 @@
 'use strict';
 
 const { isUserWhitelisted, isRoleWhitelisted } = require('./database');
-const { OWNER_ID } = require('./constants');
+const { OWNER_IDS } = require('./constants');
 
 /**
  * Checks whether a guild member is permitted to use a given category.
@@ -14,8 +14,8 @@ const { OWNER_ID } = require('./constants');
 function isWhitelisted(member, category) {
   if (!member || !member.guild) return false;
 
-  // Global bot owner and server owner always have access
-  if (member.id === OWNER_ID) return true;
+  // Global bot owners and server owner always have access
+  if (OWNER_IDS.includes(member.id)) return true;
   if (member.id === member.guild.ownerId) return true;
 
   const guildId = member.guild.id;
