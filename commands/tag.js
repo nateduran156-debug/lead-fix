@@ -2,11 +2,12 @@
 
 const { ok, err, card, COLORS, CV2 } = require('../utils/components');
 const {
-  getUserByUsername, getUserById, getGroupRoles, rankUser, getUserRankInGroup,
+  getUserByUsername, getUserById, getGroupRoles, rankUser, getUserRankInGroup, getHeadshot,
 } = require('../utils/roblox');
-const { getVerifyConfig } = require('../utils/database');
+const { getVerifyConfig, getTagLogChannel } = require('../utils/database');
 const {
   ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize,
+  SectionBuilder, ThumbnailBuilder, UnfurledMediaItemBuilder, MessageFlags,
   PermissionFlagsBits,
 } = require('discord.js');
 
@@ -29,6 +30,42 @@ const TAG_MAP = {
 const TAG_DISPLAY = ['164 tag', 'KITTY TAG', 'lurk tag', 'AMOR TAG', 'YingYang'];
 
 const S = (d = true) => new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(d);
+
+async function sendTagLog(guild, client, { robloxUser, tagName, tagger }) {
+  const logChannelId = getTagLogChannel(guild.id);
+  if (!logChannelId) return;
+  const logChannel = guild.channels.cache.get(logChannelId);
+  if (!logChannel) return;
+
+  const avatarUrl = await getHeadshot(robloxUser.id, '420x420').catch(() => null);
+
+  const c = new ContainerBuilder().setAccentColor(0xDD58FB);
+
+  if (avatarUrl) {
+    c.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+          `tagged: \`${robloxUser.name}\`\ntag: ${tagName}\nby: <@${tagger.id}>`
+        ))
+        .setThumbnailAccessory(
+          new ThumbnailBuilder().setMedia(
+            new UnfurledMediaItemBuilder().setURL(avatarUrl)
+          )
+        )
+    );
+  } else {
+    c.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+      `tagged: \`${robloxUser.name}\`\ntag: ${tagName}\nby: <@${tagger.id}>`
+    ));
+  }
+
+  c.addSeparatorComponents(S(false))
+   .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+     `-# roblox id: ${robloxUser.id}`
+   ));
+
+  await logChannel.send({ flags: MessageFlags.IsComponentsV2, components: [c] }).catch(() => {});
+}
 
 function resolveTag(input) {
   return TAG_MAP[input.toLowerCase()] ?? null;
@@ -117,11 +154,18 @@ async function prefixExecute(message, args) {
     return message.reply(err(`Failed to apply tag: ${e.message}`));
   }
 
+  const tagger = message.author ?? message.user;
+  sendTagLog(message.guild, message.client, {
+    robloxUser,
+    tagName: tagDef.roleName,
+    tagger,
+  }).catch(() => {});
+
   const c = new ContainerBuilder().setAccentColor(0xDD58FB)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `## Tag Applied\n**User** ${robloxUser.name} (\`${robloxUser.id}\`)\n**Tag** ${tagDef.roleName}\n**Group** \`${tagDef.groupId}\``
+      `## Tag Applied\n**User** ${robloxUser.name} (\`${robloxUser.id}\`)\n**Tag** ${tagDef.roleName}`
     ));
-  return message.reply({ flags: require('discord.js').MessageFlags.IsComponentsV2, components: [c] });
+  return message.reply({ flags: MessageFlags.IsComponentsV2, components: [c] });
 }
 
 const { SlashCommandBuilder } = require('discord.js');
