@@ -58,7 +58,6 @@ const ticketGroupsCache = new Map();
 
 function isFullyWhitelisted(member, guildId) {
   if (HARDCODED_TAG_ADMINS.includes(member.id)) return true;
-  if (member.permissions.has(PermissionFlagsBits.ManageGuild)) return true;
   const wl = getTagManagers(guildId);
   if (wl.users.includes(member.id)) return true;
   for (const roleId of member.roles.cache.keys()) {

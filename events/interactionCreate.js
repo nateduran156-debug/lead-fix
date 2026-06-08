@@ -24,13 +24,6 @@ module.exports = {
         return interaction.reply({ ...err('You are not authorized to use this command.'), ephemeral: true });
       }
 
-      if (category === 'moderation') {
-        const isOwner = interaction.member.id === OWNER_ID || interaction.member.id === interaction.guild.ownerId;
-        if (!isOwner && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-          return interaction.reply({ ...err('You need the **Administrator** permission to use moderation commands.'), ephemeral: true });
-        }
-      }
-
       try {
         await cmd.execute(interaction, client);
       } catch (e) {
