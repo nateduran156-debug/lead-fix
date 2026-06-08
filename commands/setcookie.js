@@ -31,9 +31,9 @@ const data = new SlashCommandBuilder()
 async function execute(interaction) {
   const cookie = interaction.options.getString('cookie');
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator))
-    return interaction.reply({ content: err('You need the **Administrator** permission.'), ephemeral: true });
+    return interaction.reply({ ...err('You need the **Administrator** permission.'), ephemeral: true });
   setVerifyConfig(interaction.guild.id, { cookie });
-  await interaction.reply({ content: ok('Cookie stored securely.'), ephemeral: true });
+  await interaction.reply({ ...ok('Cookie stored securely.'), ephemeral: true });
 }
 
 module.exports = { data, execute, prefixName, aliases, category, prefixExecute };
