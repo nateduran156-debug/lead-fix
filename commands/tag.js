@@ -19,14 +19,14 @@ const aliases    = ['t'];
 // group 575770529 → lurk tag, AMOR TAG, KITTY TAG, YingYang
 
 const TAG_MAP = {
-  '164':       { groupId: '948951510', roleName: '164' },
+  '164 tag':   { groupId: '948951510', roleName: '164 tag' },
   'lurk tag':  { groupId: '575770529', roleName: 'lurk tag' },
   'amor tag':  { groupId: '575770529', roleName: 'AMOR TAG' },
   'kitty tag': { groupId: '575770529', roleName: 'KITTY TAG' },
   'yingyang':  { groupId: '575770529', roleName: 'YingYang' },
 };
 
-const TAG_DISPLAY = ['164', 'KITTY TAG', 'lurk tag', 'AMOR TAG', 'YingYang'];
+const TAG_DISPLAY = ['164 tag', 'KITTY TAG', 'lurk tag', 'AMOR TAG', 'YingYang'];
 
 const S = (d = true) => new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(d);
 
@@ -132,7 +132,7 @@ const data = new SlashCommandBuilder()
   .addStringOption(o => o.setName('username').setDescription('Roblox username').setRequired(true))
   .addStringOption(o => o.setName('tag').setDescription('tag name').setRequired(true)
     .addChoices(
-      { name: '164',      value: '164' },
+      { name: '164 tag',  value: '164 tag' },
       { name: 'lurk tag', value: 'lurk tag' },
       { name: 'AMOR TAG', value: 'AMOR TAG' },
       { name: 'KITTY TAG', value: 'KITTY TAG' },
