@@ -249,10 +249,31 @@ async function setGroupShout(groupId, message, cookie) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Dominant colour extraction (uses full-body avatar thumbnail)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function getDominantColor(imageUrl) {
+  try {
+    const sharp = require('sharp');
+    const res = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 8000 });
+    const buf = Buffer.from(res.data);
+    // Resize to 1×1 — gives the weighted average of every pixel (i.e. dominant hue)
+    const { data } = await sharp(buf)
+      .resize(1, 1, { kernel: 'cubic' })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    return (data[0] << 16) | (data[1] << 8) | data[2];
+  } catch {
+    return 0x000000; // fallback to black
+  }
+}
+
 module.exports = {
   getUserByUsername, getUserById, getUsersByIds, searchUsers,
   getUserPresence,
-  getHeadshot, getAvatarThumbnail, getGroupIcon,
+  getHeadshot, getAvatarThumbnail, getGroupIcon, getDominantColor,
   getGameInfo, getUserGames,
   getGroupInfo, getGroupMembers, getGroupWall, getUserGroups, getUserRankInGroup, getGroups,
   getUserFriends, getFriendCount,
