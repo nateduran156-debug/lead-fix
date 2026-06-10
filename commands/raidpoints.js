@@ -5,9 +5,14 @@ const {
   getRaidLeaderboard, getRaidSeason, updateRaidSeason,
   modifyRankPoints,
 } = require('../utils/database');
-const { applyRankRoles }            = require('../utils/rankroles');
-const { ok, err, card, COLORS }     = require('../utils/components');
-const { PermissionFlagsBits }        = require('discord.js');
+const { applyRankRoles }      = require('../utils/rankroles');
+const { applyRaidRankRoles }  = require('../utils/raidRankSync');
+const { ok, err, card, COLORS } = require('../utils/components');
+const {
+  PermissionFlagsBits,
+  ContainerBuilder, TextDisplayBuilder, SeparatorBuilder,
+  SeparatorSpacingSize, MessageFlags,
+} = require('discord.js');
 
 const category   = 'raidpoints';
 const prefixName = 'raidpoints';
@@ -24,21 +29,40 @@ async function prefixExecute(message, args) {
     const user = message.mentions.users.first() || message.author;
     const data = getRaidPoints(user.id, guildId, season);
     return message.reply(card({
-      title: `⚔️ ${user.username}'s Raid Points`,
+      title: `${user.username}'s Raid Points`,
       desc:  `**Points** ${data?.points ?? 0}\n**Season** ${season}`,
-      color: COLORS.red,
+      color: COLORS.black,
     }));
   }
 
   // ── .raidpoints top ───────────────────────────────────────────────────────
   if (sub === 'top' || sub === 'lb' || sub === 'leaderboard') {
     const lb = getRaidLeaderboard(guildId, season);
-    if (!lb.length) return message.reply(card({ title: '⚔️ Raid Leaderboard', desc: 'No data for this season.', color: COLORS.red }));
+    if (!lb.length) return message.reply(card({ title: 'Raid Leaderboard', desc: 'No data for this season.', color: COLORS.black }));
     return message.reply(card({
-      title:  `⚔️ Raid Leaderboard — ${season}`,
+      title:  `Raid Leaderboard — ${season}`,
       desc:   lb.map((e, i) => `**#${i + 1}** <@${e.user_id}> — **${e.points}** pts`).join('\n'),
-      color:  COLORS.red,
+      color:  COLORS.black,
     }));
+  }
+
+  // ── .raidpoints panel [#channel] ─────────────────────────────────────────
+  if (sub === 'panel') {
+    const ch = message.mentions.channels.first() || message.channel;
+    const lb = getRaidLeaderboard(guildId, season);
+    const list = lb.length
+      ? lb.map((e, i) => `**#${i + 1}** <@${e.user_id}> — **${e.points}** pts`).join('\n')
+      : 'No raid points recorded this season.';
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const container = new ContainerBuilder()
+      .setAccentColor(0x000000)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## Raid Leaderboard — ${season}`))
+      .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(list))
+      .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# updated ${dateStr}`));
+    await ch.send({ flags: MessageFlags.IsComponentsV2, components: [container] });
+    return message.reply(ok(`Raid leaderboard panel sent to ${ch}.`));
   }
 
   // ── .raidpoints season [number] ───────────────────────────────────────────
@@ -49,7 +73,7 @@ async function prefixExecute(message, args) {
       updateRaidSeason(guildId, num);
       return message.reply(ok(`Season set to **Season ${num}**.`));
     }
-    return message.reply(card({ title: 'Raid Season', desc: `Current season: **${season}**`, color: COLORS.red }));
+    return message.reply(card({ title: 'Raid Season', desc: `Current season: **${season}**`, color: COLORS.black }));
   }
 
   if (!isMod) return message.reply(err('You need the **Manage Server** permission to modify raid points.'));
@@ -60,14 +84,18 @@ async function prefixExecute(message, args) {
   // ── .raidpoints add @user <amount> ───────────────────────────────────────
   if (sub === 'add') {
     if (!user || isNaN(amount)) return message.reply(err('Usage: `.raidpoints add @user <amount>`'));
-    const res = modifyRaidPoints(user.id, guildId, season, amount);
+    const res    = modifyRaidPoints(user.id, guildId, season, amount);
+    const member = await message.guild.members.fetch(user.id).catch(() => null);
+    if (member) applyRaidRankRoles(message.guild, member, res.points).catch(() => {});
     return message.reply(ok(`Added **${amount}** raid points to ${user}. Total: **${res.points}**.`));
   }
 
   // ── .raidpoints remove @user <amount> ────────────────────────────────────
   if (sub === 'remove') {
     if (!user || isNaN(amount)) return message.reply(err('Usage: `.raidpoints remove @user <amount>`'));
-    const res = modifyRaidPoints(user.id, guildId, season, -amount);
+    const res    = modifyRaidPoints(user.id, guildId, season, -amount);
+    const member = await message.guild.members.fetch(user.id).catch(() => null);
+    if (member) applyRaidRankRoles(message.guild, member, res.points).catch(() => {});
     return message.reply(ok(`Removed **${amount}** raid points from ${user}. Total: **${res.points}**.`));
   }
 
@@ -75,6 +103,8 @@ async function prefixExecute(message, args) {
   if (sub === 'reset') {
     if (!user) return message.reply(err('Mention a user.'));
     setRaidPoints(user.id, guildId, season, 0);
+    const member = await message.guild.members.fetch(user.id).catch(() => null);
+    if (member) applyRaidRankRoles(message.guild, member, 0).catch(() => {});
     return message.reply(ok(`Reset ${user}'s raid points for **${season}**.`));
   }
 
@@ -88,7 +118,10 @@ async function prefixExecute(message, args) {
     const res      = modifyRankPoints(user.id, guildId, rankPts);
     setRaidPoints(user.id, guildId, season, 0);
     const member = await message.guild.members.fetch(user.id).catch(() => null);
-    if (member) applyRankRoles(message.guild, member, res.points).catch(() => {});
+    if (member) {
+      applyRankRoles(message.guild, member, res.points).catch(() => {});
+      applyRaidRankRoles(message.guild, member, 0).catch(() => {});
+    }
     return message.reply(ok(
       `Transferred **${rankPts}** rank points to ${user} (${raidPts} raid pts × ${multi}).\nRaid points have been reset.`
     ));
@@ -99,13 +132,15 @@ async function prefixExecute(message, args) {
     desc: [
       '`.raidpoints check [@user]` — check raid points',
       '`.raidpoints top` — leaderboard',
+      '`.raidpoints panel [#channel]` — send leaderboard panel',
       '`.raidpoints season [number]` — view or change the season',
       '`.raidpoints add @user <amount>` — add raid points',
       '`.raidpoints remove @user <amount>` — remove raid points',
       '`.raidpoints reset @user` — reset a user\'s points',
       '`.raidpoints transfer @user [multiplier]` — convert to rank points',
+      '`.setrank <role_id> <points>` — set auto-promo thresholds',
     ].join('\n'),
-    color: COLORS.red,
+    color: COLORS.black,
   }));
 }
 

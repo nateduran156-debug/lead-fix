@@ -48,7 +48,11 @@ async function prefixExecute(message, args) {
   const sub     = args[0]?.toLowerCase();
   const g       = getGuild(guildId);
 
-  if (!sub || sub === 'status') return message.reply(showStatus(message.guild, g));
+  if (!sub) {
+    const { quickCmdHelp } = require('./misc/help');
+    return message.reply(quickCmdHelp('antinuke'));
+  }
+  if (sub === 'status') return message.reply(showStatus(message.guild, g));
 
   if (sub === 'enable') {
     db.prepare('UPDATE guilds SET antinuke_enabled = 1 WHERE guild_id = ?').run(guildId);
