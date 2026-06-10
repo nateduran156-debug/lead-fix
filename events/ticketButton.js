@@ -19,14 +19,14 @@ const {
 } = require('../utils/roblox');
 
 const CV2    = MessageFlags.IsComponentsV2;
-const ACCENT = 0xDD58FB;
+const ACCENT = 0x000000;
 const ACCEPT_ROLE = '1505970868805697659';
 
-const TAG_TICKET_CATEGORY    = '1511974634566844476';
-const VERIFY_TICKET_CATEGORY = '1513373676312203335';
+const TAG_TICKET_CATEGORY    = '1513739601238429716';
+const VERIFY_TICKET_CATEGORY = '1514108054965063761';
 
-const VERIFY_GROUP_ID   = '948951510';
-const VERIFY_GROUP_LINK = 'https://www.roblox.com/communities/948951510/yes-we-triggerbot#!/about';
+const VERIFY_GROUP_ID   = '196792643';
+const VERIFY_GROUP_LINK = 'https://www.roblox.com/share/g/196792643';
 
 const PAGE_SIZE = 3;
 
