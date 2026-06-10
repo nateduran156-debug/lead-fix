@@ -90,7 +90,7 @@ async function run(guildId, channel, target, reply) {
         `**Not in group** ${skipped} users`,
         `**Failed** ${failed} users`,
       ].join('\n'),
-      color: stripped > 0 ? 0xDD58FB : COLORS.red,
+      color: stripped > 0 ? 0x000000 : COLORS.red,
     }));
   }
 
@@ -115,7 +115,7 @@ async function run(guildId, channel, target, reply) {
   return reply(card({
     title: results.some(r => r.ok) ? `Strip Tag — ${robloxUser.name}` : 'Strip Tag — Nothing changed',
     desc:  lines.join('\n'),
-    color: results.some(r => r.ok) ? 0xDD58FB : COLORS.red,
+    color: results.some(r => r.ok) ? 0x000000 : COLORS.red,
   }));
 }
 
@@ -132,7 +132,7 @@ async function prefixExecute(message, args) {
       '`.striptag <roblox username>` — strip one user back to Unverified / Member',
       '`.striptag everyone` — strip all linked users in the server',
     ].join('\n'),
-    color: 0xDD58FB,
+    color: 0x000000,
   }));
 
   return run(message.guild.id, message.channel, target, p => message.reply(p));

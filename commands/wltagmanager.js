@@ -45,7 +45,7 @@ async function prefixExecute(message, args) {
     const userLines  = wl.users.length  ? wl.users.map(id => `<@${id}>`).join(', ')    : 'None';
     const roleLines  = wl.roles.length  ? wl.roles.map(id => `<@&${id}>`).join(', ')   : 'None';
 
-    const c = new ContainerBuilder().setAccentColor(0xDD58FB)
+    const c = new ContainerBuilder().setAccentColor(0x000000)
       .addTextDisplayComponents(new TextDisplayBuilder().setContent('## Tag Manager Whitelist'))
       .addSeparatorComponents(S())
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(
@@ -90,7 +90,7 @@ async function prefixExecute(message, args) {
       '`.wltagmanager add @role` — whitelist a role',
       '`.wltagmanager remove @user/@role` — remove from whitelist',
     ].join('\n'),
-    color: 0xDD58FB,
+    color: 0x000000,
   }));
 }
 

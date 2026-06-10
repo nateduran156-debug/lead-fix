@@ -43,7 +43,7 @@ async function sendTagLog(guild, client, { robloxUser, tagName, tagger }) {
 
   const avatarUrl = await getHeadshot(robloxUser.id, '420x420').catch(() => null);
 
-  const c = new ContainerBuilder().setAccentColor(0xDD58FB);
+  const c = new ContainerBuilder().setAccentColor(0x000000);
 
   if (avatarUrl) {
     c.addSectionComponents(
@@ -97,7 +97,7 @@ async function prefixExecute(message, args) {
         '',
         `**Available tags:** ${TAG_DISPLAY.map(t => `\`${t}\``).join(', ')}`,
       ].join('\n'),
-      color: 0xDD58FB,
+      color: 0x000000,
     }));
   }
 
@@ -165,7 +165,7 @@ async function prefixExecute(message, args) {
     tagger,
   }).catch(() => {});
 
-  const c = new ContainerBuilder().setAccentColor(0xDD58FB)
+  const c = new ContainerBuilder().setAccentColor(0x000000)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       `## Tag Applied\n**User** ${robloxUser.name} (\`${robloxUser.id}\`)\n**Tag** ${tagDef.roleName}`
     ));
@@ -254,7 +254,7 @@ async function execute(interaction) {
     tagger:  interaction.user,
   }).catch(() => {});
 
-  const c = new ContainerBuilder().setAccentColor(0xDD58FB)
+  const c = new ContainerBuilder().setAccentColor(0x000000)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
       `## Tag Applied\n**User** ${robloxUser.name} (\`${robloxUser.id}\`)\n**Tag** ${tagDef.roleName}`
     ));
