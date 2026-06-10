@@ -1,6 +1,6 @@
 'use strict';
 
-const { isWhitelisted }              = require('../utils/whitelist');
+const { isWhitelisted, hasBotAccess } = require('../utils/whitelist');
 const { getGiveaway, updateGiveaway } = require('../utils/database');
 const { ok, err, CV2, COLORS, C }   = require('../utils/components');
 const { OWNER_ID }                   = require('../utils/constants');
@@ -12,6 +12,9 @@ const {
 module.exports = {
   name: 'interactionCreate',
   async execute(interaction, client) {
+
+    // ── Global whitelist gate — silently ignore non-whitelisted users ────────
+    if (interaction.guild && !hasBotAccess(interaction.member)) return;
 
     // ── Slash commands ───────────────────────────────────────────────────────
     if (interaction.isChatInputCommand()) {

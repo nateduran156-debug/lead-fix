@@ -1,7 +1,7 @@
 'use strict';
 
 const { getPrefix, resolveAlias, getAutoResponders, ensureGuild } = require('../utils/database');
-const { isWhitelisted }    = require('../utils/whitelist');
+const { isWhitelisted, hasBotAccess } = require('../utils/whitelist');
 const { err }               = require('../utils/components');
 const { OWNER_ID }          = require('../utils/constants');
 const { PermissionFlagsBits } = require('discord.js');
@@ -12,6 +12,9 @@ module.exports = {
     if (message.author.bot || !message.guild) return;
 
     ensureGuild(message.guild.id);
+
+    // ── Global whitelist gate — silently ignore non-whitelisted users ────────
+    if (!hasBotAccess(message.member)) return;
 
     // ── Auto-responders ──────────────────────────────────────────────────────
     const responders = getAutoResponders(message.guild.id);
