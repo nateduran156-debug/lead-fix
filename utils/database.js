@@ -28,6 +28,8 @@ function updateGuildField(g, field, v) { ensureGuild(g); store.guilds.get(g)[fie
 
 function isUserWhitelisted(g, u, cat) { return store.whitelist_users.has(`${g}:${u}:${cat}`) || store.whitelist_users.has(`${g}:${u}:all`); }
 function isRoleWhitelisted(g, r, cat) { return store.whitelist_roles.has(`${g}:${r}:${cat}`) || store.whitelist_roles.has(`${g}:${r}:all`); }
+function hasAnyUserWhitelist(g, u) { for (const k of store.whitelist_users.keys()) { if (k.startsWith(`${g}:${u}:`)) return true; } return false; }
+function hasAnyRoleWhitelist(g, r) { for (const k of store.whitelist_roles.keys()) { if (k.startsWith(`${g}:${r}:`)) return true; } return false; }
 function addWhitelistUser(g, u, cat) { store.whitelist_users.set(`${g}:${u}:${cat}`, { guild_id: g, user_id: u, category: cat }); }
 function removeWhitelistUser(g, u, cat) { if (cat === 'all') { for (const k of store.whitelist_users.keys()) { if (k.startsWith(`${g}:${u}:`)) store.whitelist_users.delete(k); } } else store.whitelist_users.delete(`${g}:${u}:${cat}`); return { changes: 1 }; }
 function addWhitelistRole(g, r, cat) { store.whitelist_roles.set(`${g}:${r}:${cat}`, { guild_id: g, role_id: r, category: cat }); }
@@ -101,7 +103,7 @@ function getAutomodConfig(g) { return store.automod_config.get(g); }
 function setAutomodConfig(g, fields) { if (!store.automod_config.has(g)) store.automod_config.set(g, { guild_id: g, enabled: 0, log_channel: null, spam_threshold: 5, spam_window: 5000, caps_threshold: 70, link_mode: 'off', mention_limit: 5, bad_words: '[]', whitelist_roles: '[]', whitelist_channels: '[]' }); Object.assign(store.automod_config.get(g), fields); }
 
 function getTicketConfig(g) { return store.ticket_config.get(g); }
-function setTicketConfig(g, fields) { if (!store.ticket_config.has(g)) store.ticket_config.set(g, { guild_id: g, category_id: null, log_channel: null, support_role: null, staff_role: null, panel_channel: null, panel_message: null, open_message: 'Staff will be with you shortly.', max_tickets: 1 }); Object.assign(store.ticket_config.get(g), fields); }
+function setTicketConfig(g, fields) { if (!store.ticket_config.has(g)) store.ticket_config.set(g, { guild_id: g, category_id: null, tag_category_id: null, verify_category_id: null, log_channel: null, support_role: null, staff_role: null, panel_channel: null, panel_message: null, open_message: 'Staff will be with you shortly.', max_tickets: 1 }); Object.assign(store.ticket_config.get(g), fields); }
 function openTicket(g, ch, u) { store.tickets.set(ch, { id: nextId(), guild_id: g, channel_id: ch, user_id: u, status: 'open', created_at: now(), closed_at: null }); }
 function closeTicket(ch) { const t = store.tickets.get(ch); if (t) { t.status = 'closed'; t.closed_at = now(); } }
 function getOpenTicket(g, u) { return [...store.tickets.values()].find(r => r.guild_id === g && r.user_id === u && r.status === 'open'); }
@@ -110,7 +112,7 @@ const db = { prepare: () => ({ get: () => undefined, all: () => [], run: () => (
 
 module.exports = {
   db, getConfig, setConfig, getPrefix, setPrefix, getGuild, ensureGuild, updateGuildField,
-  isUserWhitelisted, isRoleWhitelisted, addWhitelistUser, removeWhitelistUser, addWhitelistRole, removeWhitelistRole, getWhitelistUsers, getWhitelistRoles,
+  isUserWhitelisted, isRoleWhitelisted, hasAnyUserWhitelist, hasAnyRoleWhitelist, addWhitelistUser, removeWhitelistUser, addWhitelistRole, removeWhitelistRole, getWhitelistUsers, getWhitelistRoles,
   getSniperTarget, getAllSniperTargets, getSniperTargetsByGuild, addSniperTarget, removeSniperTarget, updateSniperTargetChannel,
   getTag, getAllTags, setTag, deleteTag, addWarning, getWarnings, clearWarnings,
   getGiveaway, createGiveaway, updateGiveaway, getActiveGiveaways, addReminder, getPendingReminders, markReminderFired,
