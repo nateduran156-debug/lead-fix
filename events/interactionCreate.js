@@ -79,6 +79,35 @@ module.exports = {
     if (interaction.isButton()) {
       const id = interaction.customId;
 
+      // ── Roles pagination ─────────────────────────────────────────────────────
+      if (id === 'roles_prev' || id === 'roles_next' || id === 'roles_sort' || id === 'roles_close') {
+        const { rolesCache, buildEmbed } = require('../commands/server/roles');
+        const cached = rolesCache.get(interaction.message.id);
+
+        if (id === 'roles_close') {
+          rolesCache.delete(interaction.message.id);
+          return interaction.message.delete().catch(() => interaction.deferUpdate().catch(() => {}));
+        }
+
+        if (!cached) return interaction.deferUpdate().catch(() => {});
+
+        let { roles, page, sort, userId } = cached;
+
+        if (id === 'roles_sort') {
+          sort = sort === 'pos' ? 'alpha' : 'pos';
+          page = 0;
+        } else if (id === 'roles_prev') {
+          page = Math.max(0, page - 1);
+        } else if (id === 'roles_next') {
+          const totalPages = Math.ceil(roles.length / 10) || 1;
+          page = Math.min(totalPages - 1, page + 1);
+        }
+
+        rolesCache.set(interaction.message.id, { roles, page, sort, userId });
+        const payload = buildEmbed(interaction.guild, roles, page, sort, interaction.user);
+        return interaction.update(payload).catch(() => {});
+      }
+
       // ── Giveaway ────────────────────────────────────────────────────────────
       if (id.startsWith('giveaway_enter_')) {
         const msgId   = id.replace('giveaway_enter_', '');
