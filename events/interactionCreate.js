@@ -163,6 +163,39 @@ module.exports = {
         return;
       }
 
+      // ── Help pagination ◀ ▶ ⇅ ✕ ─────────────────────────────────────────────
+      if (id === 'cmdhelp_prev' || id === 'cmdhelp_next' || id === 'cmdhelp_sort' || id === 'cmdhelp_close') {
+        const { helpCache, buildPage } = require('../utils/cmdHelp');
+        const { getPrefix } = require('../utils/database');
+        const cached = helpCache.get(interaction.message.id);
+
+        if (id === 'cmdhelp_close') {
+          helpCache.delete(interaction.message.id);
+          return interaction.message.delete().catch(() => interaction.deferUpdate().catch(() => {}));
+        }
+
+        if (!cached) return interaction.deferUpdate().catch(() => {});
+
+        if (cached.authorId && interaction.user.id !== cached.authorId) {
+          return interaction.reply({ content: 'This menu is not for you.', ephemeral: true });
+        }
+
+        const { ALL_CMDS, ALL_CMDS_ALPHA } = require('../utils/cmdHelp');
+        let { page, sortAlpha, authorId } = cached;
+        const total = sortAlpha ? ALL_CMDS_ALPHA.length : ALL_CMDS.length;
+
+        if (id === 'cmdhelp_sort') { sortAlpha = !sortAlpha; page = 0; }
+        else if (id === 'cmdhelp_prev') page = Math.max(0, page - 1);
+        else if (id === 'cmdhelp_next') page = Math.min(total - 1, page + 1);
+
+        const prefix = getPrefix(interaction.guild.id) || '.';
+        const requester = interaction.user;
+        const payload = buildPage(page, sortAlpha, prefix, requester);
+
+        helpCache.set(interaction.message.id, { page, sortAlpha, authorId });
+        return interaction.update(payload).catch(() => {});
+      }
+
       // ── Staff ticket buttons ─────────────────────────────────────────────────
       if (
         id === 'ticket_close' ||
