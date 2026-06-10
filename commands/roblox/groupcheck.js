@@ -26,7 +26,7 @@ async function buildPage(displayName, groups, page) {
     slice.map(({ group }) => getGroupIcon(group.id, '150x150').catch(() => null))
   );
 
-  const c = new ContainerBuilder().setAccentColor(0xDD58FB)
+  const c = new ContainerBuilder().setAccentColor(0x000000)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ${displayName}'s joined groups`))
     .addSeparatorComponents(S());
 
@@ -112,7 +112,7 @@ async function prefixExecute(message, args) {
   }
 
   if (!groups.length) {
-    return message.reply(card({ title: `${displayName}'s joined groups`, desc: 'This user is not in any groups.', color: 0xDD58FB }));
+    return message.reply(card({ title: `${displayName}'s joined groups`, desc: 'This user is not in any groups.', color: 0x000000 }));
   }
 
   let page = 0;
@@ -157,7 +157,7 @@ async function execute(interaction) {
     displayName = linked.roblox_name;
   }
   const groups = await getUserGroups(robloxId).catch(() => []);
-  if (!groups.length) return interaction.editReply(card({ title: `${displayName}'s joined groups`, desc: 'No groups.', color: 0xDD58FB }));
+  if (!groups.length) return interaction.editReply(card({ title: `${displayName}'s joined groups`, desc: 'No groups.', color: 0x000000 }));
   await interaction.editReply(await buildPage(displayName, groups, 0));
 }
 
