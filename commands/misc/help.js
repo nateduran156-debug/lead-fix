@@ -128,6 +128,10 @@ const CATS = {
       { name: 'raidpoints season',   desc: 'View or change the current raid season.',        aliases: [], parameters: '[number: <n>]', info: 'n/a', usage: '.raidpoints season [number]',         example: '.raidpoints season 4' },
       { name: 'raidpoints reset',    desc: 'Reset a specific user\'s raid points.',          aliases: [], parameters: '@user',          info: 'n/a', usage: '.raidpoints reset @user',             example: '.raidpoints reset @Member' },
       { name: 'raidpoints transfer', desc: 'Transfer raid points to rank points.',           aliases: [], parameters: '@user [multiplier]', info: 'n/a', usage: '.raidpoints transfer @user [x]', example: '.raidpoints transfer @Raider 2' },
+      { name: 'raidpoints panel',   desc: 'Send the raid leaderboard as a panel in a channel.', aliases: [], parameters: '[#channel]', info: 'n/a', usage: '.raidpoints panel [#channel]', example: '.raidpoints panel #leaderboard' },
+      { name: 'setrank',            desc: 'Set a raid points threshold to auto-grant a role.',  aliases: ['sr'], parameters: '<role_id> <points>', info: 'Auto-strips role if points drop below threshold', usage: '.setrank <role_id> <points>', example: '.setrank 123456789012345678 50' },
+      { name: 'setrank list',       desc: 'View all configured auto-promo raid rank roles.',    aliases: [], parameters: 'n/a', info: 'n/a', usage: '.setrank list', example: '.setrank list' },
+      { name: 'setrank remove',     desc: 'Remove a raid rank role threshold.',                 aliases: [], parameters: '<role_id>', info: 'n/a', usage: '.setrank remove <role_id>', example: '.setrank remove 123456789012345678' },
     ],
   },
   misc: {
@@ -187,7 +191,7 @@ function cmdPage(catKey, page, authorId) {
   const info     = cmd.info ?? 'n/a';
 
   const c = new ContainerBuilder()
-    .setAccentColor(cat.color)
+    .setAccentColor(0x000000)
     // Command name + description
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ${cmd.name}`))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`> ${cmd.desc}`))
@@ -219,7 +223,7 @@ function mainPage(prefix) {
     `**${cat.label}** — ${cat.cmds.length} commands`
   );
   const c = new ContainerBuilder()
-    .setAccentColor(0xDD58FB)
+    .setAccentColor(0x000000)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## Command Reference`))
     .addSeparatorComponents(S())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join('\n')))
@@ -301,4 +305,38 @@ const CMD_META = Object.fromEntries(
   )
 );
 
-module.exports = { data, CMD_META, execute, prefixExecute, prefixName, aliases, category };
+// ─── Quick command help card (no nav buttons, for inline use) ────────────────
+
+function quickCmdHelp(cmdName) {
+  const meta = CMD_META[cmdName];
+  if (!meta) {
+    const c = new ContainerBuilder()
+      .setAccentColor(0x000000)
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ${cmdName}\nNo help available for this command.`));
+    return { flags: CV2, components: [c] };
+  }
+  const aliasStr = meta.aliases?.length ? meta.aliases.join(', ') : 'n/a';
+  const c = new ContainerBuilder()
+    .setAccentColor(0x000000)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ${meta.name}`))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`> ${meta.desc}`))
+    .addSeparatorComponents(S())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+      [
+        `**Aliases**\n${aliasStr}`,
+        `**Parameters**\n${meta.parameters ?? 'n/a'}`,
+        `**Information**\n${meta.info ?? 'n/a'}`,
+        `**Usage**`,
+      ].join('\n')
+    ))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+      `\`\`\`\nSyntax:   ${meta.usage}\nExample:  ${meta.example}\n\`\`\``
+    ))
+    .addSeparatorComponents(S(SeparatorSpacingSize.Small, false))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+      `-# Module: ${meta.label}`
+    ));
+  return { flags: CV2, components: [c] };
+}
+
+module.exports = { data, CMD_META, quickCmdHelp, execute, prefixExecute, prefixName, aliases, category };
