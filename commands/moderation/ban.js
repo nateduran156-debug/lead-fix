@@ -14,7 +14,10 @@ async function prefixExecute(message, args) {
     return message.reply(err('You need the **Ban Members** permission.'));
 
   const member = message.mentions.members.first();
-  if (!member) return message.reply(err('Mention a member to ban.'));
+  if (!member) {
+    const { quickCmdHelp } = require('../misc/help');
+    return message.reply(quickCmdHelp('ban'));
+  }
   if (!member.bannable) return message.reply(err('I cannot ban that member.'));
 
   const reason = args.slice(1).join(' ') || 'No reason provided';
