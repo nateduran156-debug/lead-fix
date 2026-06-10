@@ -21,7 +21,7 @@ const COLORS = {
   blue:   0x5865F2,
   yellow: 0xFEE75C,
   orange: 0xFF6B35,
-  purple: 0x9B59B6,
+  purple: 0x000000,
   pink:   0xEB459E,
   gold:   0xF1C40F,
   teal:   0x1ABC9C,
