@@ -49,8 +49,11 @@ async function prefixExecute(message, args) {
   const g       = getGuild(guildId);
 
   if (!sub) {
-    const { quickCmdHelp } = require('./misc/help');
-    return message.reply(quickCmdHelp('antinuke'));
+    return message.reply(card({
+      title: 'antinuke',
+      desc: '> Configure the AntiNuke protection system.\n\n**Aliases**\nan, nuke\n**Parameters**\nsubcommand [options]\n**Usage**\n```\nSyntax:   .antinuke <subcommand>\nExample:  .antinuke enable\n```\n\n**Subcommands**\n`enable` · `disable` · `status` · `punish` · `window` · `log` · `module` · `threshold` · `whitelist`',
+      color: 0x000000,
+    }));
   }
   if (sub === 'status') return message.reply(showStatus(message.guild, g));
 
@@ -130,20 +133,9 @@ async function prefixExecute(message, args) {
     return message.reply(err('Usage: `.antinuke whitelist add/remove @user`'));
   }
 
-  return message.reply(card({
-    title: 'AntiNuke — Usage',
-    desc: [
-      '`.antinuke status` — view configuration',
-      '`.antinuke enable/disable` — toggle AntiNuke',
-      '`.antinuke punish <ban|kick|strip>` — set punishment type',
-      '`.antinuke window <seconds>` — set detection window',
-      '`.antinuke log #channel` — set log channel',
-      '`.antinuke module <name> <on|off>` — toggle a module',
-      '`.antinuke threshold <module> <count>` — set action threshold',
-      '`.antinuke whitelist add/remove @user` — manage whitelist',
-    ].join('\n'),
-    color: COLORS.blue,
-  }));
+  const { findPage, openHelp } = require('../utils/cmdHelp');
+  const prefix = require('../utils/database').getPrefix(message.guild.id) || '.';
+  return openHelp(message, findPage('antinuke'), prefix);
 }
 
 const { SlashCommandBuilder } = require('discord.js');
