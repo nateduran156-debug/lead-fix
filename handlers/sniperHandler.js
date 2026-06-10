@@ -84,7 +84,7 @@ async function notifySniper(client, target, presence) {
     }
 
     const container = new ContainerBuilder()
-      .setAccentColor(0xDD58FB)
+      .setAccentColor(0x000000)
       .addSectionComponents(section)
       .addSeparatorComponents(S())
       .addTextDisplayComponents(
