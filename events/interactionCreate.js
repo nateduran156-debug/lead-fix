@@ -23,9 +23,7 @@ module.exports = {
 
       const category = cmd.category || 'all';
 
-      if (!isWhitelisted(interaction.member, category)) {
-        return interaction.reply({ ...err('You are not authorized to use this command.'), ephemeral: true });
-      }
+      if (!isWhitelisted(interaction.member, category)) return;
 
       try {
         await cmd.execute(interaction, client);
@@ -73,6 +71,67 @@ module.exports = {
           } else {
             await interaction.reply(reply).catch(() => {});
           }
+        }
+        return;
+      }
+
+      // ── Setup modals ──────────────────────────────────────────────────────
+      if (id.startsWith('setup_modal_')) {
+        const {
+          buildPanel, setPrefix: _setPrefix, setConfig: _setConfig, setVerifyConfig: _setVerifyConfig,
+        } = require('../commands/setup');
+        const { setPrefix, setConfig, setVerifyConfig, getPrefix } = require('../utils/database');
+
+        // parse customId: setup_modal_TYPE:msgId:chanId
+        const parts  = id.split(':');
+        const type   = parts[0].replace('setup_modal_', '');
+        const msgId  = parts[1];
+        const chanId = parts[2];
+
+        const guild  = interaction.guild;
+
+        const refreshPanel = async () => {
+          try {
+            const chan = guild.channels.cache.get(chanId);
+            if (!chan) return;
+            const msg = await chan.messages.fetch(msgId).catch(() => null);
+            if (!msg) return;
+            const prefix = getPrefix(guild.id);
+            await msg.edit(buildPanel(guild, prefix)).catch(() => {});
+          } catch (_) { /* panel refresh is best-effort */ }
+        };
+
+        try {
+          if (type === 'prefix') {
+            const val = interaction.fields.getTextInputValue('prefix').trim();
+            if (!val) return interaction.reply({ ...err('Prefix cannot be empty.'), ephemeral: true });
+            setPrefix(guild.id, val);
+            await interaction.reply({ ...ok(`Prefix updated to \`${val}\`.`), ephemeral: true });
+
+          } else if (type === 'cookie') {
+            const val = interaction.fields.getTextInputValue('cookie').trim();
+            setConfig(guild.id, 'cookie', val);
+            await interaction.reply({ ...ok('Cookie saved.'), ephemeral: true });
+
+          } else if (type === 'roblox') {
+            const val = interaction.fields.getTextInputValue('group_id').trim();
+            if (!/^\d+$/.test(val)) return interaction.reply({ ...err('Group ID must be a number.'), ephemeral: true });
+            setConfig(guild.id, 'roblox_group_id', val);
+            await interaction.reply({ ...ok(`Roblox Group ID set to \`${val}\`.`), ephemeral: true });
+
+          } else if (type === 'verifiedrole') {
+            const val = interaction.fields.getTextInputValue('role_id').trim();
+            const role = guild.roles.cache.get(val) || guild.roles.cache.find(r => r.name.toLowerCase() === val.toLowerCase());
+            if (!role) return interaction.reply({ ...err(`Couldn't find a role with ID/name \`${val}\`.`), ephemeral: true });
+            setVerifyConfig(guild.id, { verified_role: role.id });
+            await interaction.reply({ ...ok(`Verified role set to <@&${role.id}>.`), ephemeral: true });
+          }
+
+          await refreshPanel();
+        } catch (e) {
+          console.error(`[Setup Modal ${type}] ${e.message}`);
+          if (!interaction.replied && !interaction.deferred)
+            await interaction.reply({ ...err(`Setup failed: ${e.message}`), ephemeral: true }).catch(() => {});
         }
         return;
       }
@@ -194,6 +253,64 @@ module.exports = {
 
         helpCache.set(interaction.message.id, { page, sortAlpha, authorId });
         return interaction.update(payload).catch(() => {});
+      }
+
+      // ── Setup panel buttons ───────────────────────────────────────────────────
+      if (id.startsWith('setup_')) {
+        const {
+          buildPanel, setupCache,
+          doSetupLogs, doSetupAntiNuke, doSetupAutoMod, doSetupWelcome, doSetupTickets,
+          modalPrefix, modalCookie, modalRoblox, modalVerifiedRole,
+        } = require('../commands/setup');
+        const { getPrefix } = require('../utils/database');
+
+        // Only the person who opened the panel can use it
+        const cached = setupCache.get(interaction.message.id);
+        if (cached && cached.authorId && interaction.user.id !== cached.authorId) {
+          return interaction.reply({ content: 'This setup panel is not for you.', ephemeral: true });
+        }
+
+        // Check permissions
+        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
+          return interaction.reply({ ...err('You need **Manage Server** to use this.'), ephemeral: true });
+        }
+
+        const guild  = interaction.guild;
+        const msgId  = interaction.message.id;
+        const chanId = interaction.channelId;
+
+        // Helper: defer + run + update panel
+        const autoSetup = async (label, fn) => {
+          await interaction.deferReply({ ephemeral: true });
+          try {
+            await fn(guild);
+            const prefix = getPrefix(guild.id);
+            await interaction.message.edit(buildPanel(guild, prefix)).catch(() => {});
+            await interaction.editReply({ content: `✅ **${label}** configured successfully.` });
+          } catch (e) {
+            console.error(`[Setup ${label}] ${e.message}`);
+            await interaction.editReply({ ...err(`Setup failed: ${e.message}`) });
+          }
+        };
+
+        if (id === 'setup_close') {
+          setupCache.delete(interaction.message.id);
+          return interaction.message.delete().catch(() => interaction.deferUpdate().catch(() => {}));
+        }
+
+        if (id === 'setup_logs')     return autoSetup('Log Channels', doSetupLogs);
+        if (id === 'setup_antinuke') return autoSetup('Anti-Nuke',    doSetupAntiNuke);
+        if (id === 'setup_automod')  return autoSetup('Auto-Mod',     doSetupAutoMod);
+        if (id === 'setup_welcome')  return autoSetup('Welcome',      doSetupWelcome);
+        if (id === 'setup_tickets')  return autoSetup('Tickets',      doSetupTickets);
+
+        // Modal-based setups
+        if (id === 'setup_prefix')       return interaction.showModal(modalPrefix(msgId, chanId));
+        if (id === 'setup_cookie')       return interaction.showModal(modalCookie(msgId, chanId));
+        if (id === 'setup_roblox')       return interaction.showModal(modalRoblox(msgId, chanId));
+        if (id === 'setup_verifiedrole') return interaction.showModal(modalVerifiedRole(msgId, chanId));
+
+        return;
       }
 
       // ── Staff ticket buttons ─────────────────────────────────────────────────

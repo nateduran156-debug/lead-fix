@@ -51,9 +51,7 @@ module.exports = {
     // Determine the command's category for whitelist checks
     const category = cmd.category || 'all';
 
-    if (!isWhitelisted(message.member, category)) {
-      return message.reply(err('You are not authorized to use this command.'));
-    }
+    if (!isWhitelisted(message.member, category)) return;
 
     // All commands: show greed-style help when called with no arguments
     if (args.length === 0) {
