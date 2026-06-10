@@ -1,9 +1,9 @@
 'use strict';
 
-const { ok, err, modCard }     = require('../../utils/components');
-const { addWarning }            = require('../../utils/database');
-const { PermissionFlagsBits }   = require('discord.js');
-const { sendLog }               = require('../../utils/logger');
+const { ok, err, modCard, card } = require('../../utils/components');
+const { addWarning }             = require('../../utils/database');
+const { PermissionFlagsBits }    = require('discord.js');
+const { sendLog }                = require('../../utils/logger');
 
 const category   = 'moderation';
 const prefixName = 'ban';
@@ -15,8 +15,9 @@ async function prefixExecute(message, args) {
 
   const member = message.mentions.members.first();
   if (!member) {
-    const { quickCmdHelp } = require('../misc/help');
-    return message.reply(quickCmdHelp('ban'));
+    const { findPage, openHelp } = require('../../utils/cmdHelp');
+    const prefix = require('../../utils/database').getPrefix(message.guild.id) || '.';
+    return openHelp(message, findPage('ban'), prefix);
   }
   if (!member.bannable) return message.reply(err('I cannot ban that member.'));
 
