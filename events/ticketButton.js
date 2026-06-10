@@ -20,13 +20,11 @@ const {
 
 const CV2    = MessageFlags.IsComponentsV2;
 const ACCENT = 0x000000;
-const ACCEPT_ROLE = '1505970868805697659';
+const ACCEPT_ROLE = '1510051906662170824';
 
-const TAG_TICKET_CATEGORY    = '1513739601238429716';
-const VERIFY_TICKET_CATEGORY = '1514108054965063761';
 
 const VERIFY_GROUP_ID   = '196792643';
-const VERIFY_GROUP_LINK = 'https://www.roblox.com/share/g/196792643';
+const VERIFY_GROUP_LINK = 'https://www.roblox.com/communities/196792643/glory-in-my-right-arm#!/about';
 
 const PAGE_SIZE = 3;
 
@@ -198,8 +196,13 @@ async function handleModalSubmit(interaction, client) {
   }
 
   let parentId = cfg?.category_id || null;
-  if (ticketType === 'tag')    parentId = TAG_TICKET_CATEGORY;
-  if (ticketType === 'verify') parentId = VERIFY_TICKET_CATEGORY;
+  if (ticketType === 'tag'    && cfg?.tag_category_id)    parentId = cfg.tag_category_id;
+  if (ticketType === 'verify' && cfg?.verify_category_id) parentId = cfg.verify_category_id;
+
+  // Validate the category exists in this guild before using it
+  if (parentId && !guild.channels.cache.has(parentId)) {
+    parentId = null;
+  }
 
   let channel;
   try {
@@ -326,27 +329,59 @@ async function handleModalSubmit(interaction, client) {
       await channel.send({ flags: CV2, components: [empty] });
     }
 
-    // In-group status — always checks group 948951510
+    // In-group status check
     const rankData = await getUserRankInGroup(robloxUser.id, VERIFY_GROUP_ID).catch(() => null);
     const inGroup  = !!rankData;
 
-    const statusCard = new ContainerBuilder()
-      .setAccentColor(inGroup ? COLORS.green : COLORS.red)
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        inGroup
-          ? [
-              `## In group`,
-              `**${robloxUser.name}** is in the group.`,
-              `**Rank:** ${rankData.role?.name ?? 'Member'}`,
-            ].join('\n')
-          : [
-              `## Not in group`,
-              `**${robloxUser.name}** is not in the group yet.`,
-              `They must join before being verified: ${VERIFY_GROUP_LINK}`,
-            ].join('\n')
-      ));
+    if (ticketType === 'verify' && inGroup) {
+      // ── Auto-verify: user is already in the group ────────────────────────
+      const verifyRoleId = getVerifyConfig(guild.id)?.verified_role || ACCEPT_ROLE;
+      let autoVerified = false;
+      try {
+        const targetMember = await guild.members.fetch(user.id).catch(() => null);
+        if (targetMember && verifyRoleId) {
+          await targetMember.roles.add(verifyRoleId);
+          autoVerified = true;
+        }
+      } catch { /* role may not exist in this server */ }
 
-    await channel.send({ flags: CV2, components: [statusCard] });
+      const statusCard = new ContainerBuilder()
+        .setAccentColor(COLORS.green)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+          [
+            `## ✅ Auto-verified`,
+            `**${robloxUser.name}** is already in the group.`,
+            `**Rank:** ${rankData.role?.name ?? 'Member'}`,
+            autoVerified ? `\n${user} has been automatically verified and given their role.` : `\n${user} is verified. (Could not assign role — check bot permissions)`,
+          ].join('\n')
+        ));
+      await channel.send({ flags: CV2, components: [statusCard] });
+
+      // Auto-close ticket after 8 seconds
+      setTimeout(() => {
+        closeTicket(channel.id);
+        ticketGroupsCache.delete(channel.id);
+        channel.delete().catch(() => {});
+      }, 8000);
+    } else {
+      // ── Not in group, or support ticket — show status ────────────────────
+      const statusCard = new ContainerBuilder()
+        .setAccentColor(inGroup ? COLORS.green : COLORS.red)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+          inGroup
+            ? [
+                `## In group`,
+                `**${robloxUser.name}** is in the group.`,
+                `**Rank:** ${rankData.role?.name ?? 'Member'}`,
+              ].join('\n')
+            : [
+                `## Not in group`,
+                `**${robloxUser.name}** is not in the group yet.`,
+                `They must join before being verified: ${VERIFY_GROUP_LINK}`,
+              ].join('\n')
+        ));
+      await channel.send({ flags: CV2, components: [statusCard] });
+    }
   } catch (e) {
     await channel.send({ ...err(`Group check failed: ${e.message}`) }).catch(() => {});
   }
