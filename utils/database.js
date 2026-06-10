@@ -7,9 +7,10 @@ const store = {
   guild_config: new Map(), guilds: new Map(), whitelist_users: new Map(),
   whitelist_roles: new Map(), sniper_targets: new Map(), tags: new Map(),
   warnings: [], giveaways: new Map(), reminders: [], raid_points: new Map(),
-  rank_points: new Map(), rank_roles: new Map(), custom_aliases: new Map(),
-  autoresponders: new Map(), antinuke_actions: [], verify_config: new Map(),
-  verified_users: new Map(), automod_config: new Map(), ticket_config: new Map(), tickets: new Map(),
+  rank_points: new Map(), rank_roles: new Map(), raid_rank_roles: new Map(),
+  custom_aliases: new Map(), autoresponders: new Map(), antinuke_actions: [],
+  verify_config: new Map(), verified_users: new Map(), automod_config: new Map(),
+  ticket_config: new Map(), tickets: new Map(),
 };
 let _id = 1;
 const nextId = () => _id++;
@@ -74,6 +75,10 @@ function getRankRolesFromDB(g) { return [...store.rank_roles.values()].filter(r 
 function addRankRoleToDB(g, r, t) { store.rank_roles.set(`${g}:${r}`, { guild_id: g, role_id: r, threshold: t }); }
 function removeRankRoleFromDB(g, r) { store.rank_roles.delete(`${g}:${r}`); return { changes: 1 }; }
 
+function getRaidRankRoles(g) { return [...store.raid_rank_roles.values()].filter(r => r.guild_id === g).sort((a,b) => a.threshold - b.threshold); }
+function addRaidRankRole(g, r, t) { store.raid_rank_roles.set(`${g}:${r}`, { guild_id: g, role_id: r, threshold: t }); }
+function removeRaidRankRole(g, r) { const deleted = store.raid_rank_roles.delete(`${g}:${r}`); return { changes: deleted ? 1 : 0 }; }
+
 function getCustomAliases(g) { return [...store.custom_aliases.values()].filter(r => r.guild_id === g).sort((a,b) => a.shortcut.localeCompare(b.shortcut)); }
 function addCustomAlias(g, shortcut, target, createdBy) { store.custom_aliases.set(`${g}:${shortcut}`, { id: nextId(), guild_id: g, shortcut, target, created_by: createdBy }); }
 function removeCustomAlias(g, shortcut) { store.custom_aliases.delete(`${g}:${shortcut}`); return { changes: 1 }; }
@@ -111,6 +116,7 @@ module.exports = {
   getGiveaway, createGiveaway, updateGiveaway, getActiveGiveaways, addReminder, getPendingReminders, markReminderFired,
   getRaidSeason, updateRaidSeason, getRaidPoints, modifyRaidPoints, setRaidPoints, getRaidLeaderboard,
   getRankPoints, modifyRankPoints, getRankLeaderboard, getRankRolesFromDB, addRankRoleToDB, removeRankRoleFromDB,
+  getRaidRankRoles, addRaidRankRole, removeRaidRankRole,
   getCustomAliases, addCustomAlias, removeCustomAlias, resolveAlias, getAutoResponders, addAutoResponder, removeAutoResponder,
   recordAntiNukeAction, getAntiNukeActions, getVerifyConfig, setVerifyConfig, getVerifiedUser, setVerifiedUser, removeVerifiedUser,
   getAutomodConfig, setAutomodConfig, getTicketConfig, setTicketConfig, openTicket, closeTicket, getOpenTicket,

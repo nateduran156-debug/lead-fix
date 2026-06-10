@@ -26,7 +26,7 @@ const COLORS = {
   gold:   0xF1C40F,
   teal:   0x1ABC9C,
   white:  0xFFFFFF,
-  black:  0x23272A,
+  black:  0x000000,
   gray:   0x99AAB5,
 };
 
@@ -56,7 +56,7 @@ const C = {
 };
 
 function card({ title, desc, fields, color, footer, image, thumbnail } = {}) {
-  const container = C.container(color ?? COLORS.blue);
+  const container = C.container(color ?? COLORS.black);
 
   if (title) {
     container.addTextDisplayComponents(C.text(`## ${title}`));
