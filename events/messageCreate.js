@@ -55,14 +55,8 @@ module.exports = {
       return message.reply(err('You are not authorized to use this command.'));
     }
 
-    // Parent commands: show greed-style help when called with no arguments
-    const HELP_ON_EMPTY = new Set([
-      'antinuke', 'giveaway', 'raidpoints', 'setupticket', 'sniper',
-      'automod', 'wl', 'wlroles', 'vanity', 'rankroles', 'alias',
-      'autoresponder', 'wltagmanager', 'setrank', 'config', 'settings',
-      'ranksync', 'striptag', 'logs',
-    ]);
-    if (args.length === 0 && HELP_ON_EMPTY.has(cmdName)) {
+    // All commands: show greed-style help when called with no arguments
+    if (args.length === 0) {
       const { findPage, openHelp } = require('../utils/cmdHelp');
       return openHelp(message, findPage(cmdName), prefix);
     }
